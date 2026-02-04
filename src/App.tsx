@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Objective } from './types';
-import { ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Pencil, Trash2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid'; // Import uuid for unique IDs
 
 function App() {
@@ -36,6 +36,28 @@ function App() {
   };
 
   const [objectives, setObjectives] = useState<Objective[]>([initialObjective]);
+  const [editingId, setEditingId] = useState<string | null>(null); // State to track which objective is being edited
+
+  const deleteObjective = (id: string) => {
+    setObjectives(prev => prev.filter(objective => objective.id !== id));
+  };
+
+  const editObjective = (id: string) => {
+    setEditingId(id); // Set the ID of the objective to be edited
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null); // Exit edit mode
+  };
+
+  const handleObjectiveTitleChange = (id: string, newTitle: string) => {
+    setObjectives(prev =>
+      prev.map(objective =>
+        objective.id === id ? { ...objective, title: newTitle } : objective
+      )
+    );
+  };
+
 
   const toggleKeyResult = (id: string) => {
     setExpandedKeyResultIds(prev =>
@@ -63,23 +85,61 @@ function App() {
       {objectives.map((objective) => (
         <div key={objective.id}>
           {/* Objective Card */}
-          <div 
-            className="bg-white rounded-xl p-4 shadow-sm mb-4 cursor-pointer transition-all hover:shadow-md"
-            onClick={() => setIsObjectiveExpanded(!isObjectiveExpanded)}
-          >
-            <div className="flex justify-between items-start mb-2">
-              <h2 className="text-xl font-bold">{objective.title}</h2>
-              {isObjectiveExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-              <div
-                className="bg-blue-600 h-2.5 rounded-full"
-                style={{ width: `${objective.progress}%` }}
-              ></div>
-            </div>
-            <p className="text-sm text-gray-600 mt-1">{objective.progress}% Complete</p>
-          </div>
-
+                    <div
+                      className="bg-white rounded-xl p-4 shadow-sm mb-4 cursor-pointer transition-all hover:shadow-md"
+                      onClick={() => setIsObjectiveExpanded(!isObjectiveExpanded)}
+                    >
+                                  <div className="flex justify-between items-start mb-2">
+                                    {editingId === objective.id ? (
+                                      <input
+                                        type="text"
+                                        value={objective.title}
+                                        onChange={(e) => handleObjectiveTitleChange(objective.id, e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            setEditingId(null); // Save by exiting edit mode
+                                          } else if (e.key === 'Escape') {
+                                            cancelEdit();
+                                          }
+                                        }}
+                                        onBlur={() => setEditingId(null)} // Save by exiting edit mode on blur
+                                        className="text-xl font-bold p-1 border border-blue-300 rounded w-full"
+                                        autoFocus
+                                      />
+                                    ) : (
+                                      <h2 className="text-xl font-bold">{objective.title}</h2>
+                                    )}
+                                    <div className="flex items-center space-x-2"> {/* Container for icons */}                          <button
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent accordion from toggling
+                              editObjective(objective.id);
+                            }}
+                            className="text-gray-400 hover:text-blue-500 focus:outline-none"
+                            aria-label="Edit Objective"
+                          >
+                            <Pencil size={20} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent accordion from toggling
+                              deleteObjective(objective.id);
+                            }}
+                            className="text-gray-400 hover:text-red-500 focus:outline-none"
+                            aria-label="Delete Objective"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                          {isObjectiveExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+                        </div>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                        <div
+                          className="bg-blue-600 h-2.5 rounded-full"
+                          style={{ width: `${objective.progress}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">{objective.progress}% Complete</p>
+                    </div>
           {/* Key Results List */}
           {isObjectiveExpanded && (
             <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">

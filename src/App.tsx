@@ -58,6 +58,26 @@ function App() {
     );
   };
 
+  const addKeyResult = (objectiveId: string) => {
+    const title = window.prompt('Enter new key result title:');
+    if (title) {
+      const newKeyResult: KeyResult = {
+        id: uuidv4(),
+        title,
+        progress: 0,
+        actionItems: [],
+      };
+      setObjectives(prevObjectives =>
+        prevObjectives.map(obj =>
+          obj.id === objectiveId
+            ? { ...obj, keyResults: [...obj.keyResults, newKeyResult] }
+            : obj
+        )
+      );
+    }
+  };
+
+
 
   const toggleKeyResult = (id: string) => {
     setExpandedKeyResultIds(prev =>
@@ -141,53 +161,61 @@ function App() {
                       <p className="text-sm text-gray-600 mt-1">{objective.progress}% Complete</p>
                     </div>
           {/* Key Results List */}
-          {isObjectiveExpanded && (
-            <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
-              {objective.keyResults.map((kr) => {
-                const isExpanded = expandedKeyResultIds.includes(kr.id);
-                return (
-                  <div 
-                    key={kr.id} 
-                    className="bg-white rounded-xl p-4 shadow-sm transition-all"
-                  >
-                    {/* Key Result Header */}
-                    <div 
-                      className="flex justify-between items-start cursor-pointer"
-                      onClick={() => toggleKeyResult(kr.id)}
-                    >
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold mb-1">{kr.title}</h3>
-                        <p className="text-sm text-gray-500 mb-2">{kr.progress}% Complete</p>
+                    {isObjectiveExpanded && (
+                      <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+                        {objective.keyResults.map((kr) => {
+                          const isExpanded = expandedKeyResultIds.includes(kr.id);
+                          return (
+                            <div
+                              key={kr.id}
+                              className="bg-white rounded-xl p-4 shadow-sm transition-all"
+                            >
+                              {/* Key Result Header */}
+                              <div
+                                className="flex justify-between items-start cursor-pointer"
+                                onClick={() => toggleKeyResult(kr.id)}
+                              >
+                                <div className="flex-1">
+                                  <h3 className="text-lg font-semibold mb-1">{kr.title}</h3>
+                                  <p className="text-sm text-gray-500 mb-2">{kr.progress}% Complete</p>
+                                </div>
+                                {isExpanded ? <ChevronUp size={20} className="text-gray-500" /> : <ChevronDown size={20} className="text-gray-500" />}
+                              </div>
+          
+                              {/* Action Items List */}
+                              {isExpanded && (
+                                <div className="mt-3 pt-3 border-t border-gray-100">
+                                  <ul className="space-y-2">
+                                    {kr.actionItems.map((ai) => (
+                                      <li key={ai.id} className="flex items-center text-sm text-gray-700">
+                                        <input
+                                          type="checkbox"
+                                          checked={ai.isCompleted}
+                                          readOnly
+                                          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300 mr-3"
+                                        />
+                                        <span className={ai.isCompleted ? 'line-through text-gray-400' : ''}>
+                                          {ai.title}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+          
+                        {/* Add Key Result Button */}
+                        <button
+                          onClick={() => addKeyResult(objective.id)}
+                          className="mt-4 w-full bg-blue-100 text-blue-800 py-2 px-4 rounded-md hover:bg-blue-200 transition-colors flex items-center justify-center space-x-1"
+                        >
+                          <Plus size={16} />
+                          <span>Add Key Result</span>
+                        </button>
                       </div>
-                      {isExpanded ? <ChevronUp size={20} className="text-gray-500" /> : <ChevronDown size={20} className="text-gray-500" />}
-                    </div>
-
-                    {/* Action Items List */}
-                    {isExpanded && (
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <ul className="space-y-2">
-                          {kr.actionItems.map((ai) => (
-                            <li key={ai.id} className="flex items-center text-sm text-gray-700">
-                              <input 
-                                type="checkbox" 
-                                checked={ai.isCompleted} 
-                                readOnly 
-                                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300 mr-3"
-                              />
-                              <span className={ai.isCompleted ? 'line-through text-gray-400' : ''}>
-                                {ai.title}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                    )}        </div>
       ))}
 
       {/* Floating Action Button */}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Objective } from './types';
+import type { Objective, KeyResult } from './types';
 import { ChevronDown, ChevronUp, Plus, Pencil, Trash2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid'; // Import uuid for unique IDs
 

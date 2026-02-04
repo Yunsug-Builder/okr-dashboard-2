@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import type { Objective, KeyResult, ActionItem } from './types';
-import { ChevronDown, ChevronUp, Plus, Pencil, Trash2 } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid'; // Import uuid for unique IDs
+import { Plus } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
+import ObjectiveList from './components/ObjectiveList';
 
 function App() {
   const [isObjectiveExpanded, setIsObjectiveExpanded] = useState(true);
   const [expandedKeyResultIds, setExpandedKeyResultIds] = useState<string[]>([]);
 
-  // Initial dummy data for objectives
   const initialObjective: Objective = {
-    id: uuidv4(), // Use uuid for the initial objective as well
+    id: uuidv4(),
     title: 'Become a Senior Frontend Engineer',
     progress: 60,
     keyResults: [
@@ -36,18 +36,23 @@ function App() {
   };
 
   const [objectives, setObjectives] = useState<Objective[]>([initialObjective]);
-  const [editingId, setEditingId] = useState<string | null>(null); // State to track which objective is being edited
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const addObjective = () => {
+    const title = window.prompt('Enter new objective title:');
+    if (title) {
+      const newObjective: Objective = {
+        id: uuidv4(),
+        title,
+        progress: 0,
+        keyResults: [],
+      };
+      setObjectives(prev => [...prev, newObjective]);
+    }
+  };
 
   const deleteObjective = (id: string) => {
     setObjectives(prev => prev.filter(objective => objective.id !== id));
-  };
-
-  const editObjective = (id: string) => {
-    setEditingId(id); // Set the ID of the objective to be edited
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null); // Exit edit mode
   };
 
   const handleObjectiveTitleChange = (id: string, newTitle: string) => {
@@ -77,6 +82,19 @@ function App() {
     }
   };
 
+  const deleteKeyResult = (objectiveId: string, keyResultId: string) => {
+    setObjectives(prevObjectives =>
+      prevObjectives.map(obj =>
+        obj.id === objectiveId
+          ? {
+              ...obj,
+              keyResults: obj.keyResults.filter(kr => kr.id !== keyResultId),
+            }
+          : obj
+      )
+    );
+  };
+
   const addActionItem = (objectiveId: string, keyResultId: string) => {
     const title = window.prompt('Enter new action item title:');
     if (title) {
@@ -102,7 +120,52 @@ function App() {
     }
   };
 
+  const toggleActionItemCompletion = (objectiveId: string, keyResultId: string, actionItemId: string) => {
+    setObjectives(prevObjectives =>
+      prevObjectives.map(obj =>
+        obj.id === objectiveId
+          ? {
+              ...obj,
+              keyResults: obj.keyResults.map(kr =>
+                kr.id === keyResultId
+                  ? {
+                      ...kr,
+                      actionItems: kr.actionItems.map(ai =>
+                        ai.id === actionItemId ? { ...ai, isCompleted: !ai.isCompleted } : ai
+                      ),
+                    }
+                  : kr
+              ),
+            }
+          : obj
+      )
+    );
+  };
 
+  const deleteActionItem = (objectiveId: string, keyResultId: string, actionItemId: string) => {
+    setObjectives(prevObjectives =>
+      prevObjectives.map(obj =>
+        obj.id === objectiveId
+          ? {
+              ...obj,
+              keyResults: obj.keyResults.map(kr =>
+                kr.id === keyResultId
+                  ? {
+                      ...kr,
+                      actionItems: kr.actionItems.filter(ai => ai.id !== actionItemId),
+                    }
+                  : kr
+              ),
+            }
+          : obj
+      )
+    );
+  };
+
+
+  const toggleObjectiveExpansion = (objectiveId: string) => {
+    setIsObjectiveExpanded(prev => !prev);
+  };
 
   const toggleKeyResult = (id: string) => {
     setExpandedKeyResultIds(prev =>
@@ -112,144 +175,24 @@ function App() {
     );
   };
 
-  const addObjective = () => {
-    const title = window.prompt('Enter new objective title:');
-    if (title) {
-      const newObjective: Objective = {
-        id: uuidv4(),
-        title,
-        progress: 0,
-        keyResults: [],
-      };
-      setObjectives(prev => [...prev, newObjective]);
-    }
-  };
-
   return (
-    <div className="max-w-[430px] mx-auto min-h-screen bg-gray-50 shadow-lg p-4 relative pb-20"> {/* Added relative and pb-20 for FAB */}
-      {objectives.map((objective) => (
-        <div key={objective.id}>
-          {/* Objective Card */}
-                    <div
-                      className="bg-white rounded-xl p-4 shadow-sm mb-4 cursor-pointer transition-all hover:shadow-md"
-                      onClick={() => setIsObjectiveExpanded(!isObjectiveExpanded)}
-                    >
-                                  <div className="flex justify-between items-start mb-2">
-                                    {editingId === objective.id ? (
-                                      <input
-                                        type="text"
-                                        value={objective.title}
-                                        onChange={(e) => handleObjectiveTitleChange(objective.id, e.target.value)}
-                                        onKeyDown={(e) => {
-                                          if (e.key === 'Enter') {
-                                            setEditingId(null); // Save by exiting edit mode
-                                          } else if (e.key === 'Escape') {
-                                            cancelEdit();
-                                          }
-                                        }}
-                                        onBlur={() => setEditingId(null)} // Save by exiting edit mode on blur
-                                        className="text-xl font-bold p-1 border border-blue-300 rounded w-full"
-                                        autoFocus
-                                      />
-                                    ) : (
-                                      <h2 className="text-xl font-bold">{objective.title}</h2>
-                                    )}
-                                    <div className="flex items-center space-x-2"> {/* Container for icons */}                          <button
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent accordion from toggling
-                              editObjective(objective.id);
-                            }}
-                            className="text-gray-400 hover:text-blue-500 focus:outline-none"
-                            aria-label="Edit Objective"
-                          >
-                            <Pencil size={20} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent accordion from toggling
-                              deleteObjective(objective.id);
-                            }}
-                            className="text-gray-400 hover:text-red-500 focus:outline-none"
-                            aria-label="Delete Objective"
-                          >
-                            <Trash2 size={20} />
-                          </button>
-                          {isObjectiveExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
-                        </div>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                        <div
-                          className="bg-blue-600 h-2.5 rounded-full"
-                          style={{ width: `${objective.progress}%` }}
-                        ></div>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">{objective.progress}% Complete</p>
-                    </div>
-          {/* Key Results List */}
-                    {isObjectiveExpanded && (
-                      <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
-                        {objective.keyResults.map((kr) => {
-                          const isExpanded = expandedKeyResultIds.includes(kr.id);
-                          return (
-                            <div
-                              key={kr.id}
-                              className="bg-white rounded-xl p-4 shadow-sm transition-all"
-                            >
-                              {/* Key Result Header */}
-                              <div
-                                className="flex justify-between items-start cursor-pointer"
-                                onClick={() => toggleKeyResult(kr.id)}
-                              >
-                                <div className="flex-1">
-                                  <h3 className="text-lg font-semibold mb-1">{kr.title}</h3>
-                                  <p className="text-sm text-gray-500 mb-2">{kr.progress}% Complete</p>
-                                </div>
-                                {isExpanded ? <ChevronUp size={20} className="text-gray-500" /> : <ChevronDown size={20} className="text-gray-500" />}
-                              </div>
-          
-                              {/* Action Items List */}
-                              {isExpanded && (
-                                <div className="mt-3 pt-3 border-t border-gray-100">
-                                  <ul className="space-y-2">
-                                    {kr.actionItems.map((ai) => (
-                                      <li key={ai.id} className="flex items-center text-sm text-gray-700">
-                                        <input
-                                          type="checkbox"
-                                          checked={ai.isCompleted}
-                                          readOnly
-                                          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300 mr-3"
-                                        />
-                                        <span className={ai.isCompleted ? 'line-through text-gray-400' : ''}>
-                                          {ai.title}
-                                        </span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                  {/* Add Action Item Button */}
-                                  <button
-                                    onClick={() => addActionItem(objective.id, kr.id)}
-                                    className="mt-4 w-full bg-green-100 text-green-800 py-2 px-4 rounded-md hover:bg-green-200 transition-colors flex items-center justify-center space-x-1"
-                                  >
-                                    <Plus size={16} />
-                                    <span>Add Action Item</span>
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-          
-                        {/* Add Key Result Button */}
-                        <button
-                          onClick={() => addKeyResult(objective.id)}
-                          className="mt-4 w-full bg-blue-100 text-blue-800 py-2 px-4 rounded-md hover:bg-blue-200 transition-colors flex items-center justify-center space-x-1"
-                        >
-                          <Plus size={16} />
-                          <span>Add Key Result</span>
-                        </button>
-                      </div>
-                    )}        </div>
-      ))}
+    <div className="max-w-[430px] mx-auto min-h-screen bg-gray-50 shadow-lg p-4 relative pb-20">
+      <ObjectiveList
+        objectives={objectives}
+        isObjectiveExpanded={isObjectiveExpanded}
+        toggleObjectiveExpansion={toggleObjectiveExpansion}
+        expandedKeyResultIds={expandedKeyResultIds}
+        toggleKeyResult={toggleKeyResult}
+        editingId={editingId}
+        setEditingId={setEditingId}
+        deleteObjective={deleteObjective}
+        handleObjectiveTitleChange={handleObjectiveTitleChange}
+        addKeyResult={addKeyResult}
+        addActionItem={addActionItem}
+        toggleActionItemCompletion={toggleActionItemCompletion}
+        deleteActionItem={deleteActionItem}
+        deleteKeyResult={deleteKeyResult}
+      />
 
       {/* Floating Action Button */}
       <button
@@ -260,7 +203,7 @@ function App() {
         <Plus size={24} />
       </button>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

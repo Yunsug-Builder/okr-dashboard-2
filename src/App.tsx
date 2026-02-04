@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import './App.css'
-import type { Objective, KeyResult, ActionItem } from './types';
+import type { Objective } from './types';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 function App() {

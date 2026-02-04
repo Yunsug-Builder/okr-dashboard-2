@@ -77,6 +77,31 @@ function App() {
     }
   };
 
+  const addActionItem = (objectiveId: string, keyResultId: string) => {
+    const title = window.prompt('Enter new action item title:');
+    if (title) {
+      const newActionItem: ActionItem = {
+        id: uuidv4(),
+        title,
+        isCompleted: false,
+      };
+      setObjectives(prevObjectives =>
+        prevObjectives.map(obj =>
+          obj.id === objectiveId
+            ? {
+                ...obj,
+                keyResults: obj.keyResults.map(kr =>
+                  kr.id === keyResultId
+                    ? { ...kr, actionItems: [...kr.actionItems, newActionItem] }
+                    : kr
+                ),
+              }
+            : obj
+        )
+      );
+    }
+  };
+
 
 
   const toggleKeyResult = (id: string) => {
@@ -200,6 +225,14 @@ function App() {
                                       </li>
                                     ))}
                                   </ul>
+                                  {/* Add Action Item Button */}
+                                  <button
+                                    onClick={() => addActionItem(objective.id, kr.id)}
+                                    className="mt-4 w-full bg-green-100 text-green-800 py-2 px-4 rounded-md hover:bg-green-200 transition-colors flex items-center justify-center space-x-1"
+                                  >
+                                    <Plus size={16} />
+                                    <span>Add Action Item</span>
+                                  </button>
                                 </div>
                               )}
                             </div>

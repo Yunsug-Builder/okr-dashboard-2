@@ -5,22 +5,37 @@ import type { Objective } from '../types';
 const objectivesCollectionRef = collection(db, 'Objectives');
 
 export const fetchObjectives = async (): Promise<Objective[]> => {
-  const querySnapshot = await getDocs(objectivesCollectionRef);
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    title: doc.data().title,
-    progress: doc.data().progress || 0, // Initialize progress if not present
-    keyResults: doc.data().keyResults || [], // Initialize as empty array if not present
-    isOpen: doc.data().isOpen || false, // Assuming isOpen might be a field
-  })) as Objective[];
+  console.log('Fetching objectives from Firestore...');
+  try {
+    const querySnapshot = await getDocs(objectivesCollectionRef);
+    const objectives = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      title: doc.data().title,
+      progress: doc.data().progress || 0,
+      keyResults: doc.data().keyResults || [],
+      isOpen: doc.data().isOpen || false,
+    })) as Objective[];
+    console.log('Objectives fetched successfully:', objectives);
+    return objectives;
+  } catch (error) {
+    console.error('Error fetching objectives:', error);
+    return []; // Return an empty array on error
+  }
 };
 
 export const addObjectiveToDB = async (title: string): Promise<string> => {
-  const newObjectiveRef = await addDoc(objectivesCollectionRef, {
-    title,
-    keyResults: [],
-    progress: 0,
-    isOpen: false,
-  });
-  return newObjectiveRef.id;
+  console.log('Adding objective to Firestore:', { title });
+  try {
+    const newObjectiveRef = await addDoc(objectivesCollectionRef, {
+      title,
+      keyResults: [],
+      progress: 0,
+      isOpen: false,
+    });
+    console.log('Objective added successfully with ID:', newObjectiveRef.id);
+    return newObjectiveRef.id;
+  } catch (error) {
+    console.error('Error adding objective:', error);
+    return ''; // Return empty string on error
+  }
 };

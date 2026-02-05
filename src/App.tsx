@@ -28,15 +28,21 @@ function App() {
     const title = window.prompt('Enter new objective title:');
     if (title) {
       try {
+        console.log('Attempting to add objective:', title);
         const newId = await addObjectiveToDB(title);
-        const newObjective: Objective = {
-          id: newId,
-          title,
-          progress: 0,
-          keyResults: [],
-          isOpen: false,
-        };
-        setObjectives(prev => [...prev, newObjective]);
+        if (newId) { // Only update local state if DB write was successful
+          const newObjective: Objective = {
+            id: newId,
+            title,
+            progress: 0,
+            keyResults: [],
+            isOpen: false,
+          };
+          setObjectives(prev => [...prev, newObjective]);
+          console.log('Objective added to UI successfully:', newObjective);
+        } else {
+          console.warn('Objective not added to UI because DB write failed.');
+        }
       } catch (error) {
         console.error("Error adding objective:", error);
       }

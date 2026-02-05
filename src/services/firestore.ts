@@ -1,5 +1,5 @@
 import { db } from '../firebase';
-import { collection, getDocs, addDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, updateDoc, doc } from 'firebase/firestore';
 import type { Objective } from '../types';
 
 const objectivesCollectionRef = collection(db, 'Objectives');
@@ -37,5 +37,31 @@ export const addObjectiveToDB = async (title: string): Promise<string> => {
   } catch (error) {
     console.error('Error adding objective:', error);
     return ''; // Return empty string on error
+  }
+};
+
+export const deleteObjectiveFromDB = async (id: string): Promise<boolean> => {
+  console.log('Deleting objective from Firestore with ID:', id);
+  try {
+    const docRef = doc(db, 'Objectives', id);
+    await deleteDoc(docRef);
+    console.log('Objective deleted successfully:', id);
+    return true;
+  } catch (error) {
+    console.error('Error deleting objective:', error);
+    return false;
+  }
+};
+
+export const updateObjectiveInDB = async (id: string, data: Partial<Objective>): Promise<boolean> => {
+  console.log('Updating objective in Firestore with ID:', id, 'Data:', data);
+  try {
+    const docRef = doc(db, 'Objectives', id);
+    await updateDoc(docRef, data as { [key: string]: any });
+    console.log('Objective updated successfully:', id);
+    return true;
+  } catch (error) {
+    console.error('Error updating objective:', error);
+    return false;
   }
 };

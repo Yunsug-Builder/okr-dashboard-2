@@ -6,7 +6,7 @@ import { ChevronDown, ChevronUp, Plus, Pencil, Trash2 } from 'lucide-react';
 interface ObjectiveItemProps {
   objective: Objective;
   isObjectiveExpanded: boolean;
-  toggleObjectiveExpansion: (objectiveId: string) => void;
+  toggleObjectiveExpansion: () => void;
   editingId: string | null;
   setEditingId: (id: string | null) => void;
   handleObjectiveTitleChange: (objectiveId: string, newTitle: string) => void;
@@ -17,6 +17,7 @@ interface ObjectiveItemProps {
   addActionItem: (objectiveId: string, keyResultId: string) => void;
   toggleActionItemCompletion: (objectiveId: string, keyResultId: string, actionItemId: string) => void;
   deleteKeyResult: (objectiveId: string, keyResultId: string) => void;
+  deleteActionItem: (objectiveId: string, keyResultId: string, actionItemId: string) => void;
 }
 
 const ObjectiveItem: React.FC<ObjectiveItemProps> = ({
@@ -33,6 +34,7 @@ const ObjectiveItem: React.FC<ObjectiveItemProps> = ({
   addActionItem,
   toggleActionItemCompletion,
   deleteKeyResult,
+  deleteActionItem,
 }) => {
   const isCurrentlyEditing = editingId === objective.id;
 
@@ -50,7 +52,7 @@ const ObjectiveItem: React.FC<ObjectiveItemProps> = ({
       {/* Objective Card */}
       <div
         className="bg-white rounded-xl p-4 shadow-sm mb-4 cursor-pointer transition-all hover:shadow-md"
-        onClick={() => toggleObjectiveExpansion(objective.id)}
+        onClick={toggleObjectiveExpansion}
       >
         <div className="flex justify-between items-start mb-2">
           {isCurrentlyEditing ? (
@@ -115,6 +117,7 @@ const ObjectiveItem: React.FC<ObjectiveItemProps> = ({
               addActionItem={addActionItem}
               toggleActionItemCompletion={toggleActionItemCompletion}
               deleteKeyResult={deleteKeyResult}
+              deleteActionItem={deleteActionItem}
             />
           ))}
 

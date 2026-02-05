@@ -5,7 +5,7 @@ import ObjectiveItem from './ObjectiveItem';
 interface ObjectiveListProps {
   objectives: Objective[];
   isObjectiveExpanded: boolean;
-  toggleObjectiveExpansion: (objectiveId: string) => void;
+  toggleObjectiveExpansion: () => void;
   expandedKeyResultIds: string[];
   toggleKeyResult: (keyResultId: string) => void;
   editingId: string | null;
@@ -16,6 +16,7 @@ interface ObjectiveListProps {
   addActionItem: (objectiveId: string, keyResultId: string) => void;
   toggleActionItemCompletion: (objectiveId: string, keyResultId: string, actionItemId: string) => void;
   deleteKeyResult: (objectiveId: string, keyResultId: string) => void;
+  deleteActionItem: (objectiveId: string, keyResultId: string, actionItemId: string) => void;
 }
 
 const ObjectiveList: React.FC<ObjectiveListProps> = ({
@@ -32,6 +33,7 @@ const ObjectiveList: React.FC<ObjectiveListProps> = ({
   addActionItem,
   toggleActionItemCompletion,
   deleteKeyResult,
+  deleteActionItem,
 }) => {
   return (
     <>
@@ -51,6 +53,7 @@ const ObjectiveList: React.FC<ObjectiveListProps> = ({
           addActionItem={addActionItem}
           toggleActionItemCompletion={toggleActionItemCompletion}
           deleteKeyResult={deleteKeyResult}
+          deleteActionItem={deleteActionItem}
         />
       ))}
     </>

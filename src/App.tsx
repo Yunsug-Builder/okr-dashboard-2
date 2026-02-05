@@ -163,7 +163,7 @@ function App() {
   };
 
 
-  const toggleObjectiveExpansion = (objectiveId: string) => {
+  const toggleObjectiveExpansion = () => {
     setIsObjectiveExpanded(prev => !prev);
   };
 

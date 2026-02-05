@@ -1,7 +1,7 @@
 import React from 'react';
 import type { KeyResult } from '../types';
 import ActionItemComponent from './ActionItem';
-import { ChevronDown, ChevronUp, Plus, Pencil, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 
 interface KeyResultItemProps {
   keyResult: KeyResult;
@@ -11,6 +11,7 @@ interface KeyResultItemProps {
   addActionItem: (objectiveId: string, keyResultId: string) => void;
   toggleActionItemCompletion: (objectiveId: string, keyResultId: string, actionItemId: string) => void;
   deleteKeyResult: (objectiveId: string, keyResultId: string) => void;
+  deleteActionItem: (objectiveId: string, keyResultId: string, actionItemId: string) => void;
   // editKeyResult: (objectiveId: string, keyResultId: string) => void; // Assuming edit functionality for KR might be added later
 }
 
@@ -22,6 +23,7 @@ const KeyResultItem: React.FC<KeyResultItemProps> = ({
   addActionItem,
   toggleActionItemCompletion,
   deleteKeyResult,
+  deleteActionItem,
   // editKeyResult,
 }) => {
   return (
@@ -69,9 +71,7 @@ const KeyResultItem: React.FC<KeyResultItemProps> = ({
                 objectiveId={objectiveId}
                 keyResultId={keyResult.id}
                 toggleActionItemCompletion={toggleActionItemCompletion}
-                deleteActionItem={(objectiveId, keyResultId, actionItemId) => {
-                  deleteActionItem(objectiveId, keyResultId, actionItemId);
-                }}
+                deleteActionItem={deleteActionItem}
               />
             ))}
           </ul>

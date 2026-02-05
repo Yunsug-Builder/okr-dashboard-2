@@ -1,53 +1,44 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Objective, KeyResult, ActionItem } from './types';
 import { Plus } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
 import ObjectiveList from './components/ObjectiveList';
+import { fetchObjectives, addObjectiveToDB } from './services/firestore';
 
 function App() {
   const [isObjectiveExpanded, setIsObjectiveExpanded] = useState(true);
   const [expandedKeyResultIds, setExpandedKeyResultIds] = useState<string[]>([]);
 
-  const initialObjective: Objective = {
-    id: uuidv4(),
-    title: 'Become a Senior Frontend Engineer',
-    progress: 60,
-    keyResults: [
-      {
-        id: uuidv4(),
-        title: 'Complete 5 complex React projects',
-        progress: 80,
-        actionItems: [
-          { id: uuidv4(), title: 'Build a dashboard application', isCompleted: true },
-          { id: uuidv4(), title: 'Develop an e-commerce site', isCompleted: true },
-          { id: uuidv4(), title: 'Create a real-time chat application', isCompleted: false },
-        ],
-      },
-      {
-        id: uuidv4(),
-        title: 'Master advanced TypeScript concepts',
-        progress: 40,
-        actionItems: [
-          { id: uuidv4(), title: 'Read "Effective TypeScript" book', isCompleted: true },
-          { id: uuidv4(), title: 'Implement generic utility types', isCompleted: false },
-        ],
-      },
-    ],
-  };
-
-  const [objectives, setObjectives] = useState<Objective[]>([initialObjective]);
+  const [objectives, setObjectives] = useState<Objective[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const addObjective = () => {
+  useEffect(() => {
+    const getObjectives = async () => {
+      try {
+        const fetchedObjectives = await fetchObjectives();
+        setObjectives(fetchedObjectives);
+      } catch (error) {
+        console.error("Error fetching objectives:", error);
+      }
+    };
+    getObjectives();
+  }, []);
+
+  const addObjective = async () => {
     const title = window.prompt('Enter new objective title:');
     if (title) {
-      const newObjective: Objective = {
-        id: uuidv4(),
-        title,
-        progress: 0,
-        keyResults: [],
-      };
-      setObjectives(prev => [...prev, newObjective]);
+      try {
+        const newId = await addObjectiveToDB(title);
+        const newObjective: Objective = {
+          id: newId,
+          title,
+          progress: 0,
+          keyResults: [],
+          isOpen: false,
+        };
+        setObjectives(prev => [...prev, newObjective]);
+      } catch (error) {
+        console.error("Error adding objective:", error);
+      }
     }
   };
 

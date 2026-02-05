@@ -16,4 +16,5 @@ export interface Objective {
   title: string;
   progress: number; // 0-100
   keyResults: KeyResult[];
+  isOpen: boolean;
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Objective, KeyResult, ActionItem } from './types';
 import { Plus } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 import ObjectiveList from './components/ObjectiveList';
 import { fetchObjectives, addObjectiveToDB } from './services/firestore';
 

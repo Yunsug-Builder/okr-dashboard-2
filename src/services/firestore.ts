@@ -1,6 +1,6 @@
 import { db } from '../firebase';
-import { collection, getDocs, addDoc, doc } from 'firebase/firestore';
-import { Objective } from '../types';
+import { collection, getDocs, addDoc } from 'firebase/firestore';
+import type { Objective } from '../types';
 
 const objectivesCollectionRef = collection(db, 'Objectives');
 

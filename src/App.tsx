@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Objective, KeyResult, ActionItem } from './types';
-import { Plus, Trash2, ChevronDown, ChevronRight, Edit, Check, X, LogOut, LogIn } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
+import { Plus, Trash2, ChevronDown, ChevronRight, Edit, Check, X, LogOut, LogIn, CalendarDays } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid'; // Used for generating unique IDs for new items
 import { 
   fetchObjectives, 
   addObjectiveToDB, 
@@ -12,22 +12,21 @@ import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signO
 import type { User } from 'firebase/auth';
 import { app } from './firebase'; // Assuming 'app' is exported from firebase.ts
 
-type ModalType = 'OBJECTIVE' | 'KEY_RESULT' | 'ACTION_ITEM' | null;
+type ModalType = 'OBJECTIVE' | 'KEY_RESULT' | 'ACTION_ITEM' | null; // Define modal types
 
 function App() {
   const [objectives, setObjectives] = useState<Objective[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingTitle, setEditingTitle] = useState('');
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
-  // Modal State
+  // Modal State - for custom add/edit forms
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<ModalType>(null);
-  const [targetObjectiveId, setTargetObjectiveId] = useState<string | null>(null);
-  const [targetKeyResultId, setTargetKeyResultId] = useState<string | null>(null);
+  const [targetObjectiveId, setTargetObjectiveId] = useState<string | null>(null); // Parent for KRs/AIs
+  const [targetKeyResultId, setTargetKeyResultId] = useState<string | null>(null);   // Parent for AIs
   const [newItemTitle, setNewItemTitle] = useState('');
   const [newItemDate, setNewItemDate] = useState('');
+  const [editingItemId, setEditingItemId] = useState<string | null>(null); // ID of item being edited
 
   const auth = getAuth(app);
   const provider = new GoogleAuthProvider();
@@ -47,7 +46,7 @@ function App() {
         };
         getObjectives();
       } else {
-        setObjectives([]);
+        setObjectives([]); // Clear objectives if user logs out or is null
       }
     });
     return () => unsubscribe();
@@ -76,6 +75,17 @@ function App() {
     setTargetKeyResultId(krId);
     setNewItemTitle('');
     setNewItemDate('');
+    setEditingItemId(null); // Ensure this is null for creation
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (type: ModalType, item: Objective | KeyResult | ActionItem, objectiveId?: string, keyResultId?: string) => {
+    setModalType(type);
+    setTargetObjectiveId(objectiveId || null);
+    setTargetKeyResultId(keyResultId || null);
+    setEditingItemId(item.id);
+    setNewItemTitle(item.title);
+    setNewItemDate(item.dueDate || ''); // Pre-fill due date
     setIsModalOpen(true);
   };
 
@@ -86,6 +96,7 @@ function App() {
     setTargetKeyResultId(null);
     setNewItemTitle('');
     setNewItemDate('');
+    setEditingItemId(null); // Reset editing item ID
   };
 
   const handleSaveItem = async () => {
@@ -97,57 +108,88 @@ function App() {
     const itemDueDate = newItemDate.trim() === '' ? undefined : newItemDate;
 
     try {
-      if (modalType === 'OBJECTIVE') {
-        const newId = await addObjectiveToDB(newItemTitle, user.uid, itemDueDate);
-        if (newId) {
-          const newObjective: Objective = {
-            id: newId,
-            userId: user.uid,
+      if (editingItemId) { // --- UPDATE MODE ---
+        if (modalType === 'OBJECTIVE') {
+          await updateObjectiveInDB(editingItemId, { title: newItemTitle, dueDate: itemDueDate });
+          setObjectives(prev => prev.map(obj => obj.id === editingItemId ? { ...obj, title: newItemTitle, dueDate: itemDueDate } : obj));
+        } else if (modalType === 'KEY_RESULT' && targetObjectiveId) {
+          const objectiveToUpdate = objectives.find(obj => obj.id === targetObjectiveId);
+          if (!objectiveToUpdate) return;
+
+          const updatedKeyResults = objectiveToUpdate.keyResults.map(kr =>
+            kr.id === editingItemId ? { ...kr, title: newItemTitle, dueDate: itemDueDate } : kr
+          );
+          await updateObjectiveInDB(targetObjectiveId, { keyResults: updatedKeyResults });
+          setObjectives(prev => prev.map(obj =>
+            obj.id === targetObjectiveId ? { ...obj, keyResults: updatedKeyResults } : obj
+          ));
+        } else if (modalType === 'ACTION_ITEM' && targetObjectiveId && targetKeyResultId) {
+          const objectiveToUpdate = objectives.find(obj => obj.id === targetObjectiveId);
+          if (!objectiveToUpdate) return;
+
+          const updatedKeyResults = objectiveToUpdate.keyResults.map(kr => {
+            if (kr.id === targetKeyResultId) {
+              const updatedActionItems = kr.actionItems.map(ai =>
+                ai.id === editingItemId ? { ...ai, title: newItemTitle, dueDate: itemDueDate } : ai
+              );
+              return { ...kr, actionItems: updatedActionItems };
+            }
+            return kr;
+          });
+          await updateObjectiveInDB(targetObjectiveId, { keyResults: updatedKeyResults });
+          setObjectives(prev => prev.map(obj =>
+            obj.id === targetObjectiveId ? { ...obj, keyResults: updatedKeyResults } : obj
+          ));
+        }
+      } else { // --- CREATE MODE ---
+        if (modalType === 'OBJECTIVE') {
+          const newId = await addObjectiveToDB(newItemTitle, user.uid, itemDueDate);
+          if (newId) {
+            const newObjective: Objective = {
+              id: newId,
+              userId: user.uid,
+              title: newItemTitle,
+              progress: 0,
+              keyResults: [],
+              isOpen: true,
+              dueDate: itemDueDate,
+            };
+            setObjectives(prev => [...prev, newObjective]);
+          }
+        } else if (modalType === 'KEY_RESULT' && targetObjectiveId) {
+          const objective = objectives.find(o => o.id === targetObjectiveId);
+          if (!objective) return;
+
+          const newKeyResult: KeyResult = {
+            id: uuidv4(),
             title: newItemTitle,
             progress: 0,
-            keyResults: [],
+            actionItems: [],
             isOpen: true,
             dueDate: itemDueDate,
           };
-          setObjectives(prev => [...prev, newObjective]);
-        }
-      } else if (modalType === 'KEY_RESULT' && targetObjectiveId) {
-        const objective = objectives.find(o => o.id === targetObjectiveId);
-        if (!objective) return;
+          
+          const updatedKeyResults = [...objective.keyResults, newKeyResult];
+          await updateObjectiveInDB(targetObjectiveId, { keyResults: updatedKeyResults });
 
-        const newKeyResult: KeyResult = {
-          id: uuidv4(),
-          title: newItemTitle,
-          progress: 0,
-          actionItems: [],
-          isOpen: true,
-          dueDate: itemDueDate,
-        };
-        
-        const updatedKeyResults = [...objective.keyResults, newKeyResult];
-        const success = await updateObjectiveInDB(targetObjectiveId, { keyResults: updatedKeyResults });
-
-        if (success) {
           setObjectives(prev =>
             prev.map(obj =>
               obj.id === targetObjectiveId ? { ...obj, keyResults: updatedKeyResults } : obj
             )
           );
-        }
-      } else if (modalType === 'ACTION_ITEM' && targetObjectiveId && targetKeyResultId) {
-        const objective = objectives.find(o => o.id === targetObjectiveId);
-        if (!objective) return;
+        } else if (modalType === 'ACTION_ITEM' && targetObjectiveId && targetKeyResultId) {
+          const objective = objectives.find(o => o.id === targetObjectiveId);
+          if (!objective) return;
 
-        const updatedKeyResults = objective.keyResults.map(kr => {
-          if (kr.id === targetKeyResultId) {
-            const newActionItem: ActionItem = { id: uuidv4(), title: newItemTitle, isCompleted: false, dueDate: itemDueDate };
-            return { ...kr, actionItems: [...kr.actionItems, newActionItem] };
-          }
-          return kr;
-        });
+          const updatedKeyResults = objective.keyResults.map(kr => {
+            if (kr.id === targetKeyResultId) {
+              const newActionItem: ActionItem = { id: uuidv4(), title: newItemTitle, isCompleted: false, dueDate: itemDueDate };
+              return { ...kr, actionItems: [...kr.actionItems, newActionItem] };
+            }
+            return kr;
+          });
 
-        const success = await updateObjectiveInDB(targetObjectiveId, { keyResults: updatedKeyResults });
-        if (success) {
+          await updateObjectiveInDB(targetObjectiveId, { keyResults: updatedKeyResults });
           setObjectives(prev =>
             prev.map(obj =>
               obj.id === targetObjectiveId ? { ...obj, keyResults: updatedKeyResults } : obj
@@ -157,7 +199,7 @@ function App() {
       }
       closeModal();
     } catch (error) {
-      console.error(`Error adding ${modalType}:`, error);
+      console.error(`Error saving ${modalType}:`, error);
     }
   };
 
@@ -176,29 +218,18 @@ function App() {
     }
   };
   
-  const handleStartEditing = (id: string, currentTitle: string) => {
-    setEditingId(id);
-    setEditingTitle(currentTitle);
-  };
-  
-  const handleCancelEditing = () => {
-    setEditingId(null);
-    setEditingTitle('');
-  };
-
+  // This function is for inline editing which is being replaced by the modal
+  // For now, it remains but the UI button will be removed.
   const handleObjectiveTitleChange = async (id: string) => {
-    if (!user) return;
-    if (editingTitle.trim() === '') return;
+    if (!user || newItemTitle.trim() === '') return; // Use newItemTitle from modal context
     try {
-      const success = await updateObjectiveInDB(id, { title: editingTitle });
-      if (success) {
-        setObjectives(prev =>
-          prev.map(objective =>
-            objective.id === id ? { ...objective, title: editingTitle } : objective
-          )
-        );
-        handleCancelEditing();
-      }
+      await updateObjectiveInDB(id, { title: newItemTitle });
+      setObjectives(prev =>
+        prev.map(objective =>
+          objective.id === id ? { ...objective, title: newItemTitle } : objective
+        )
+      );
+      closeModal(); // Close modal after successful update
     } catch (error) {
       console.error(`Error updating objective ${id} title:`, error);
     }
@@ -304,15 +335,15 @@ function App() {
       }
   };
   
-  // Calculate progress
+  // Calculate progress and sort objectives
   useEffect(() => {
     const newObjectives = objectives.map(objective => {
-      if (objective.keyResults.length === 0) {
+      if (!objective.keyResults || objective.keyResults.length === 0) {
         return { ...objective, progress: 0 };
       }
       
       const keyResultsWithProgress = objective.keyResults.map(kr => {
-        if (kr.actionItems.length === 0) {
+        if (!kr.actionItems || kr.actionItems.length === 0) {
             return { ...kr, progress: 0 };
         }
         const completed = kr.actionItems.filter(ai => ai.isCompleted).length;
@@ -327,18 +358,23 @@ function App() {
       return { ...objective, progress: overallProgress, keyResults: keyResultsWithProgress };
     });
 
-    // Sort objectives by due date
-    const sortedObjectives = newObjectives.sort((a, b) => {
-      // Objectives with no due date go to the end
-      if (!a.dueDate && !b.dueDate) return 0;
-      if (!a.dueDate) return 1;
-      if (!b.dueDate) return -1;
+    // Sort objectives by due date: undated last, then by date ascending
+    const sortedObjectives = [...newObjectives].sort((a, b) => { // Create a shallow copy to prevent direct mutation
+      if (!a.dueDate && !b.dueDate) {
+        return 0; // Maintain existing order if both have no due date
+      }
+      if (!a.dueDate) {
+        return 1; // b comes before a (a has no due date)
+      }
+      if (!b.dueDate) {
+        return -1; // a comes before b (b has no due date)
+      }
       
-      // Sort by date ascending
-      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(); // Sort by date ascending
     });
 
-    if (JSON.stringify(sortedObjectives) !== JSON.stringify(objectives)) {
+    // Only update state if progress or order has actually changed to avoid infinite loops
+    if (JSON.stringify(sortedObjectives) !== JSON.stringify(objectives)) { // Deep comparison to avoid unnecessary re-renders
         setObjectives(sortedObjectives);
     }
   }, [objectives]);
@@ -395,10 +431,10 @@ function App() {
     due.setHours(0, 0, 0, 0); // Normalize due date to midnight
 
     const diffTime = due.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Days remaining/overdue
 
     let dateText = '';
-    let textColorClass = 'text-gray-500'; // Default future dates
+    let textColorClass = 'text-gray-500'; // Default for future dates
 
     if (diffDays < 0) {
       dateText = `Overdue`;
@@ -412,22 +448,23 @@ function App() {
     }
 
     return (
-      <span className={`text-xs ml-2 font-medium ${textColorClass}`}>
+      <span className={`text-xs ml-2 font-medium ${textColorClass}`} title={dueDate}>
         {dueDate} ({dateText})
       </span>
     );
   };
 
   const getModalTitle = () => {
+    const baseTitle = editingItemId ? 'Edit' : 'New';
     switch (modalType) {
       case 'OBJECTIVE':
-        return 'New Objective';
+        return `${baseTitle} Objective`;
       case 'KEY_RESULT':
-        return 'New Key Result';
+        return `${baseTitle} Key Result`;
       case 'ACTION_ITEM':
-        return 'New Action Item';
+        return `${baseTitle} Action Item`;
       default:
-        return 'Add Item';
+        return `${baseTitle} Item`;
     }
   };
 
@@ -474,31 +511,16 @@ function App() {
             <div key={objective.id} className="bg-white rounded-lg shadow-md mb-4 overflow-hidden">
               <div className="p-4 border-b border-gray-200">
                  <div className="flex items-center justify-between">
-                  {editingId === objective.id ? (
-                    <div className="flex-grow flex items-center">
-                      <input
-                        type="text"
-                        value={editingTitle}
-                        onChange={(e) => setNewItemTitle(e.target.value)} // Changed to newItemTitle
-                        className="flex-grow p-1 border rounded-md"
-                        autoFocus
-                      />
-                      <button onClick={() => handleObjectiveTitleChange(objective.id)} className="ml-2 text-green-500"><Check size={20}/></button>
-                      <button onClick={handleCancelEditing} className="ml-2 text-red-500"><X size={20}/></button>
+                  {/* Objective Display/Edit */}
+                   <div className="flex-grow flex items-center cursor-pointer" onClick={() => toggleObjectiveOpen(objective.id)}>
+                        {objective.isOpen ? <ChevronDown size={20} className="mr-2 text-gray-500"/> : <ChevronRight size={20} className="mr-2 text-gray-500"/>}
+                        <h2 className="text-lg font-semibold text-gray-700">{objective.title}</h2>
+                        {getDueDateDisplay(objective.dueDate)}
                     </div>
-                  ) : (
-                    <>
-                      <div className="flex-grow flex items-center cursor-pointer" onClick={() => toggleObjectiveOpen(objective.id)}>
-                          {objective.isOpen ? <ChevronDown size={20} className="mr-2 text-gray-500"/> : <ChevronRight size={20} className="mr-2 text-gray-500"/>}
-                          <h2 className="text-lg font-semibold text-gray-700">{objective.title}</h2>
-                          {getDueDateDisplay(objective.dueDate)}
-                      </div>
-                      <div className="flex items-center">
-                          <button onClick={(e) => {e.stopPropagation(); handleStartEditing(objective.id, objective.title);}} className="text-gray-400 hover:text-blue-500 mr-2"><Edit size={16}/></button>
-                          <button onClick={(e) => {e.stopPropagation(); deleteObjective(objective.id);}} className="text-gray-400 hover:text-red-500"><Trash2 size={16}/></button>
-                      </div>
-                    </>
-                  )}
+                    <div className="flex items-center">
+                        <button onClick={(e) => {e.stopPropagation(); openEditModal('OBJECTIVE', objective);}} className="text-gray-400 hover:text-blue-500 mr-2" aria-label="Edit Objective"><Edit size={16}/></button>
+                        <button onClick={(e) => {e.stopPropagation(); deleteObjective(objective.id);}} className="text-gray-400 hover:text-red-500" aria-label="Delete Objective"><Trash2 size={16}/></button>
+                    </div>
                 </div>
                 <div className="mt-2 h-2 w-full bg-gray-200 rounded-full">
                   <div style={{ width: `${objective.progress}%` }} className="h-full bg-blue-500 rounded-full transition-all duration-500"></div>
@@ -516,7 +538,10 @@ function App() {
                               <p className="font-semibold text-gray-600">{kr.title}</p>
                               {getDueDateDisplay(kr.dueDate)}
                            </div>
-                           <button onClick={() => deleteKeyResult(objective.id, kr.id)} className="text-gray-400 hover:text-red-500 ml-2"><Trash2 size={14}/></button>
+                           <div className="flex items-center">
+                               <button onClick={(e) => {e.stopPropagation(); openEditModal('KEY_RESULT', kr, objective.id);}} className="text-gray-400 hover:text-blue-500 mr-2" aria-label="Edit Key Result"><Edit size={14}/></button>
+                               <button onClick={(e) => {e.stopPropagation(); deleteKeyResult(objective.id, kr.id);}} className="text-gray-400 hover:text-red-500" aria-label="Delete Key Result"><Trash2 size={14}/></button>
+                           </div>
                       </div>
                       <div className="mt-1 h-1.5 w-full bg-gray-200 rounded-full ml-6">
                           <div style={{ width: `${kr.progress}%` }} className="h-full bg-green-500 rounded-full transition-all duration-500"></div>
@@ -531,7 +556,10 @@ function App() {
                                           <span className={`text-sm ${ai.isCompleted ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{ai.title}</span>
                                           {getDueDateDisplay(ai.dueDate)}
                                       </div>
-                                      <button onClick={() => deleteActionItem(objective.id, kr.id, ai.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={12}/></button>
+                                      <div className="flex items-center">
+                                          <button onClick={(e) => {e.stopPropagation(); openEditModal('ACTION_ITEM', ai, objective.id, kr.id);}} className="text-gray-400 hover:text-blue-500 mr-2" aria-label="Edit Action Item"><Edit size={12}/></button>
+                                          <button onClick={(e) => {e.stopPropagation(); deleteActionItem(objective.id, kr.id, ai.id);}} className="text-gray-400 hover:text-red-500" aria-label="Delete Action Item"><Trash2 size={12}/></button>
+                                      </div>
                                   </div>
                               ))}
                               <button onClick={() => openModal('ACTION_ITEM', objective.id, kr.id)} className="text-sm text-blue-500 hover:text-blue-600 mt-2">+ Add Action Item</button>
@@ -555,7 +583,7 @@ function App() {
         <Plus size={24} />
       </button>
 
-      {/* Add Item Modal */}
+      {/* Add/Edit Item Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">

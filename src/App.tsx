@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Objective, KeyResult, ActionItem } from './types';
-import { Plus, Trash2, ChevronDown, ChevronRight, Edit, Check, X } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, Edit, Check, X, LogOut, LogIn } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { 
   fetchObjectives, 
@@ -8,32 +8,67 @@ import {
   deleteObjectiveFromDB,
   updateObjectiveInDB 
 } from './services/firestore';
+import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, User, signOut } from 'firebase/auth';
+import { app } from './firebase'; // Assuming 'app' is exported from firebase.ts
 
 function App() {
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [user, setUser] = useState<User | null>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
+
+  const auth = getAuth(app);
+  const provider = new GoogleAuthProvider();
 
   useEffect(() => {
-    const getObjectives = async () => {
-      try {
-        const fetchedObjectives = await fetchObjectives();
-        setObjectives(fetchedObjectives);
-      } catch (error) {
-        console.error("Error fetching objectives:", error);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoadingAuth(false);
+      if (currentUser) {
+        // If user is logged in, fetch their objectives
+        const getObjectives = async () => {
+          try {
+            const fetchedObjectives = await fetchObjectives(currentUser.uid);
+            setObjectives(fetchedObjectives);
+          } catch (error) {
+            console.error("Error fetching objectives:", error);
+          }
+        };
+        getObjectives();
+      } else {
+        setObjectives([]); // Clear objectives if user logs out
       }
-    };
-    getObjectives();
-  }, []);
+    });
+    return () => unsubscribe();
+  }, [auth]);
+
+  const signInWithGoogle = async () => {
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Error signing in with Google:", error);
+    }
+  };
+
+  const signOutUser = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
 
   const addObjective = async () => {
+    if (!user) return;
     const title = window.prompt('Enter new objective title:');
     if (title) {
       try {
-        const newId = await addObjectiveToDB(title);
+        const newId = await addObjectiveToDB(title, user.uid);
         if (newId) {
           const newObjective: Objective = {
             id: newId,
+            userId: user.uid,
             title,
             progress: 0,
             keyResults: [],
@@ -48,9 +83,10 @@ function App() {
   };
 
   const deleteObjective = async (id: string) => {
+    if (!user) return;
     if (window.confirm('Are you sure you want to delete this objective?')) {
       try {
-        const success = await deleteObjectiveFromDB(id);
+        const success = await deleteObjectiveFromDB(id); // userId is implicit via security rules
         if (success) {
           setObjectives(prev => prev.filter(objective => objective.id !== id));
         }
@@ -71,6 +107,7 @@ function App() {
   };
 
   const handleObjectiveTitleChange = async (id: string) => {
+    if (!user) return;
     if (editingTitle.trim() === '') return;
     try {
       const success = await updateObjectiveInDB(id, { title: editingTitle });
@@ -88,6 +125,7 @@ function App() {
   };
 
   const addKeyResult = async (objectiveId: string) => {
+    if (!user) return;
     const title = window.prompt('Enter new key result title:');
     if (title) {
       const objective = objectives.find(o => o.id === objectiveId);
@@ -115,6 +153,7 @@ function App() {
   };
 
   const deleteKeyResult = async (objectiveId: string, keyResultId: string) => {
+    if (!user) return;
      if (window.confirm('Are you sure you want to delete this key result?')) {
         const objective = objectives.find(o => o.id === objectiveId);
         if (!objective) return;
@@ -133,6 +172,7 @@ function App() {
   };
 
   const addActionItem = async (objectiveId: string, keyResultId: string) => {
+    if (!user) return;
     const title = window.prompt('Enter new action item title:');
     if (title) {
       const objective = objectives.find(o => o.id === objectiveId);
@@ -159,6 +199,7 @@ function App() {
   };
   
   const toggleActionItemCompletion = async (objectiveId: string, keyResultId: string, actionItemId: string) => {
+    if (!user) return;
       const objective = objectives.find(o => o.id === objectiveId);
       if (!objective) return;
 
@@ -183,6 +224,7 @@ function App() {
   };
 
   const deleteActionItem = async (objectiveId: string, keyResultId: string, actionItemId: string) => {
+    if (!user) return;
     const objective = objectives.find(o => o.id === objectiveId);
     if (!objective) return;
 
@@ -204,6 +246,7 @@ function App() {
   };
 
   const toggleObjectiveOpen = async (id: string) => {
+    if (!user) return;
     const objective = objectives.find(o => o.id === id);
     if (!objective) return;
     
@@ -218,6 +261,7 @@ function App() {
   };
   
   const toggleKeyResultOpen = async (objectiveId: string, keyResultId: string) => {
+    if (!user) return;
       const objective = objectives.find(o => o.id === objectiveId);
       if (!objective) return;
 
@@ -264,86 +308,124 @@ function App() {
     }
   }, [objectives]);
 
+  if (loadingAuth) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gray-100">
+        <p className="text-xl text-gray-700">Loading authentication...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex flex-col justify-center items-center min-h-screen bg-gray-100 p-4">
+        <h1 className="text-3xl font-bold text-gray-800 mb-6">Welcome to Objectives Dashboard</h1>
+        <p className="text-gray-600 mb-8 text-center">Please sign in to manage your objectives.</p>
+        <button 
+          onClick={signInWithGoogle} 
+          className="flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-all"
+        >
+          <LogIn size={20} className="mr-2" /> Sign in with Google
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[430px] mx-auto min-h-screen bg-gray-50 shadow-lg p-4 relative pb-20 font-sans">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Objectives</h1>
-        <p className="text-gray-500">Your roadmap to success.</p>
+      <header className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Objectives</h1>
+          <p className="text-gray-500">Your roadmap to success.</p>
+        </div>
+        <div className="flex items-center">
+          {user.displayName && <span className="text-gray-700 mr-2 hidden sm:block">Hello, {user.displayName}</span>}
+          <button 
+            onClick={signOutUser} 
+            className="p-2 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-50 transition-all"
+            aria-label="Sign out"
+          >
+            <LogOut size={20} />
+          </button>
+        </div>
       </header>
 
       <div>
-        {objectives.map((objective) => (
-          <div key={objective.id} className="bg-white rounded-lg shadow-md mb-4 overflow-hidden">
-            <div className="p-4 border-b border-gray-200">
-               <div className="flex items-center justify-between">
-                {editingId === objective.id ? (
-                  <div className="flex-grow flex items-center">
-                    <input
-                      type="text"
-                      value={editingTitle}
-                      onChange={(e) => setEditingTitle(e.target.value)}
-                      className="flex-grow p-1 border rounded-md"
-                      autoFocus
-                    />
-                    <button onClick={() => handleObjectiveTitleChange(objective.id)} className="ml-2 text-green-500"><Check size={20}/></button>
-                    <button onClick={handleCancelEditing} className="ml-2 text-red-500"><X size={20}/></button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex-grow flex items-center cursor-pointer" onClick={() => toggleObjectiveOpen(objective.id)}>
-                        {objective.isOpen ? <ChevronDown size={20} className="mr-2 text-gray-500"/> : <ChevronRight size={20} className="mr-2 text-gray-500"/>}
-                        <h2 className="text-lg font-semibold text-gray-700">{objective.title}</h2>
+        {objectives.length === 0 ? (
+          <p className="text-center text-gray-500 mt-10">No objectives found. Add your first objective!</p>
+        ) : (
+          objectives.map((objective) => (
+            <div key={objective.id} className="bg-white rounded-lg shadow-md mb-4 overflow-hidden">
+              <div className="p-4 border-b border-gray-200">
+                 <div className="flex items-center justify-between">
+                  {editingId === objective.id ? (
+                    <div className="flex-grow flex items-center">
+                      <input
+                        type="text"
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        className="flex-grow p-1 border rounded-md"
+                        autoFocus
+                      />
+                      <button onClick={() => handleObjectiveTitleChange(objective.id)} className="ml-2 text-green-500"><Check size={20}/></button>
+                      <button onClick={handleCancelEditing} className="ml-2 text-red-500"><X size={20}/></button>
                     </div>
-                    <div className="flex items-center">
-                        <button onClick={(e) => {e.stopPropagation(); handleStartEditing(objective.id, objective.title);}} className="text-gray-400 hover:text-blue-500 mr-2"><Edit size={16}/></button>
-                        <button onClick={(e) => {e.stopPropagation(); deleteObjective(objective.id);}} className="text-gray-400 hover:text-red-500"><Trash2 size={16}/></button>
-                    </div>
-                  </>
-                )}
+                  ) : (
+                    <>
+                      <div className="flex-grow flex items-center cursor-pointer" onClick={() => toggleObjectiveOpen(objective.id)}>
+                          {objective.isOpen ? <ChevronDown size={20} className="mr-2 text-gray-500"/> : <ChevronRight size={20} className="mr-2 text-gray-500"/>}
+                          <h2 className="text-lg font-semibold text-gray-700">{objective.title}</h2>
+                      </div>
+                      <div className="flex items-center">
+                          <button onClick={(e) => {e.stopPropagation(); handleStartEditing(objective.id, objective.title);}} className="text-gray-400 hover:text-blue-500 mr-2"><Edit size={16}/></button>
+                          <button onClick={(e) => {e.stopPropagation(); deleteObjective(objective.id);}} className="text-gray-400 hover:text-red-500"><Trash2 size={16}/></button>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="mt-2 h-2 w-full bg-gray-200 rounded-full">
+                  <div style={{ width: `${objective.progress}%` }} className="h-full bg-blue-500 rounded-full transition-all duration-500"></div>
+                </div>
+                <div className="text-right text-sm text-gray-500 mt-1">{objective.progress}%</div>
               </div>
-              <div className="mt-2 h-2 w-full bg-gray-200 rounded-full">
-                <div style={{ width: `${objective.progress}%` }} className="h-full bg-blue-500 rounded-full transition-all duration-500"></div>
-              </div>
-              <div className="text-right text-sm text-gray-500 mt-1">{objective.progress}%</div>
-            </div>
 
-            {objective.isOpen && (
-              <div className="p-4 bg-gray-50">
-                {objective.keyResults.map(kr => (
-                  <div key={kr.id} className="mb-3 last:mb-0">
-                    <div className="flex items-center justify-between">
-                         <div className="flex-grow flex items-center cursor-pointer" onClick={() => toggleKeyResultOpen(objective.id, kr.id)}>
-                            {kr.isOpen ? <ChevronDown size={18} className="mr-2 text-gray-500"/> : <ChevronRight size={18} className="mr-2 text-gray-500"/>}
-                            <p className="font-semibold text-gray-600">{kr.title}</p>
-                         </div>
-                         <button onClick={() => deleteKeyResult(objective.id, kr.id)} className="text-gray-400 hover:text-red-500 ml-2"><Trash2 size={14}/></button>
+              {objective.isOpen && (
+                <div className="p-4 bg-gray-50">
+                  {objective.keyResults.map(kr => (
+                    <div key={kr.id} className="mb-3 last:mb-0">
+                      <div className="flex items-center justify-between">
+                           <div className="flex-grow flex items-center cursor-pointer" onClick={() => toggleKeyResultOpen(objective.id, kr.id)}>
+                              {kr.isOpen ? <ChevronDown size={18} className="mr-2 text-gray-500"/> : <ChevronRight size={18} className="mr-2 text-gray-500"/>}
+                              <p className="font-semibold text-gray-600">{kr.title}</p>
+                           </div>
+                           <button onClick={() => deleteKeyResult(objective.id, kr.id)} className="text-gray-400 hover:text-red-500 ml-2"><Trash2 size={14}/></button>
+                      </div>
+                      <div className="mt-1 h-1.5 w-full bg-gray-200 rounded-full ml-6">
+                          <div style={{ width: `${kr.progress}%` }} className="h-full bg-green-500 rounded-full transition-all duration-500"></div>
+                      </div>
+                      
+                      {kr.isOpen && (
+                          <div className="pl-6 mt-2">
+                              {kr.actionItems.map(ai => (
+                                  <div key={ai.id} className="flex items-center justify-between py-1">
+                                      <div className="flex items-center">
+                                          <input type="checkbox" checked={ai.isCompleted} onChange={() => toggleActionItemCompletion(objective.id, kr.id, ai.id)} className="mr-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"/>
+                                          <span className={`text-sm ${ai.isCompleted ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{ai.title}</span>
+                                      </div>
+                                      <button onClick={() => deleteActionItem(objective.id, kr.id, ai.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={12}/></button>
+                                  </div>
+                              ))}
+                              <button onClick={() => addActionItem(objective.id, kr.id)} className="text-sm text-blue-500 hover:text-blue-600 mt-2">+ Add Action Item</button>
+                          </div>
+                      )}
                     </div>
-                    <div className="mt-1 h-1.5 w-full bg-gray-200 rounded-full ml-6">
-                        <div style={{ width: `${kr.progress}%` }} className="h-full bg-green-500 rounded-full transition-all duration-500"></div>
-                    </div>
-                    
-                    {kr.isOpen && (
-                        <div className="pl-6 mt-2">
-                            {kr.actionItems.map(ai => (
-                                <div key={ai.id} className="flex items-center justify-between py-1">
-                                    <div className="flex items-center">
-                                        <input type="checkbox" checked={ai.isCompleted} onChange={() => toggleActionItemCompletion(objective.id, kr.id, ai.id)} className="mr-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"/>
-                                        <span className={`text-sm ${ai.isCompleted ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{ai.title}</span>
-                                    </div>
-                                    <button onClick={() => deleteActionItem(objective.id, kr.id, ai.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={12}/></button>
-                                </div>
-                            ))}
-                            <button onClick={() => addActionItem(objective.id, kr.id)} className="text-sm text-blue-500 hover:text-blue-600 mt-2">+ Add Action Item</button>
-                        </div>
-                    )}
-                  </div>
-                ))}
-                <button onClick={() => addKeyResult(objective.id)} className="text-sm font-semibold text-blue-600 hover:text-blue-700 mt-3">+ Add Key Result</button>
-              </div>
-            )}
-          </div>
-        ))}
+                  ))}
+                  <button onClick={() => addKeyResult(objective.id)} className="text-sm font-semibold text-blue-600 hover:text-blue-700 mt-3">+ Add Key Result</button>
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
 
       <button

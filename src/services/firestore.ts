@@ -1,15 +1,17 @@
 import { db } from '../firebase';
-import { collection, getDocs, addDoc, deleteDoc, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, updateDoc, doc, query, where } from 'firebase/firestore';
 import type { Objective } from '../types';
 
 const objectivesCollectionRef = collection(db, 'Objectives');
 
-export const fetchObjectives = async (): Promise<Objective[]> => {
-  console.log('Fetching objectives from Firestore...');
+export const fetchObjectives = async (userId: string): Promise<Objective[]> => {
+  console.log('Fetching objectives from Firestore for user:', userId);
   try {
-    const querySnapshot = await getDocs(objectivesCollectionRef);
+    const q = query(objectivesCollectionRef, where('userId', '==', userId));
+    const querySnapshot = await getDocs(q);
     const objectives = querySnapshot.docs.map(doc => ({
       id: doc.id,
+      userId: doc.data().userId,
       title: doc.data().title,
       progress: doc.data().progress || 0,
       keyResults: doc.data().keyResults || [],
@@ -23,11 +25,12 @@ export const fetchObjectives = async (): Promise<Objective[]> => {
   }
 };
 
-export const addObjectiveToDB = async (title: string): Promise<string> => {
-  console.log('Adding objective to Firestore:', { title });
+export const addObjectiveToDB = async (title: string, userId: string): Promise<string> => {
+  console.log('Adding objective to Firestore:', { title, userId });
   try {
     const newObjectiveRef = await addDoc(objectivesCollectionRef, {
       title,
+      userId,
       keyResults: [],
       progress: 0,
       isOpen: false,
@@ -39,7 +42,6 @@ export const addObjectiveToDB = async (title: string): Promise<string> => {
     return ''; // Return empty string on error
   }
 };
-
 export const deleteObjectiveFromDB = async (id: string): Promise<boolean> => {
   console.log('Deleting objective from Firestore with ID:', id);
   try {

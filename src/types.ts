@@ -14,6 +14,7 @@ export interface KeyResult {
 
 export interface Objective {
   id: string;
+  userId: string;
   title: string;
   progress: number;
   keyResults: KeyResult[];

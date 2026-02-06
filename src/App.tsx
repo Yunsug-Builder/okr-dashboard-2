@@ -8,7 +8,8 @@ import {
   deleteObjectiveFromDB,
   updateObjectiveInDB 
 } from './services/firestore';
-import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, User, signOut } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import type { User } from 'firebase/auth';
 import { app } from './firebase'; // Assuming 'app' is exported from firebase.ts
 
 function App() {

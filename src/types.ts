@@ -19,4 +19,5 @@ export interface Objective {
   progress: number;
   keyResults: KeyResult[];
   isOpen?: boolean; // 목표에도 isOpen이 필요합니다.
+  dueDate?: string;
 }

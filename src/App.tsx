@@ -64,8 +64,11 @@ function App() {
     if (!user) return;
     const title = window.prompt('Enter new objective title:');
     if (title) {
+      let dueDate: string | undefined = window.prompt('Enter Due Date (YYYY-MM-DD) or leave empty:')?.trim();
+      if (dueDate === '') dueDate = undefined; // Treat empty string as undefined
+
       try {
-        const newId = await addObjectiveToDB(title, user.uid);
+        const newId = await addObjectiveToDB(title, user.uid, dueDate);
         if (newId) {
           const newObjective: Objective = {
             id: newId,
@@ -74,6 +77,7 @@ function App() {
             progress: 0,
             keyResults: [],
             isOpen: true,
+            dueDate: dueDate,
           };
           setObjectives(prev => [...prev, newObjective]);
         }
@@ -303,9 +307,19 @@ function App() {
       return { ...objective, progress: overallProgress, keyResults: keyResultsWithProgress };
     });
 
-    // Only update state if progress has actually changed to avoid infinite loops
-    if (JSON.stringify(newObjectives) !== JSON.stringify(objectives)) {
-        setObjectives(newObjectives);
+    // Sort objectives by due date
+    const sortedObjectives = newObjectives.sort((a, b) => {
+      if (a.dueDate && b.dueDate) {
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      }
+      if (a.dueDate) return -1; // Objectives with due dates come first
+      if (b.dueDate) return 1;  // Objectives with due dates come first
+      return 0; // Maintain original order if neither has a due date
+    });
+
+    // Only update state if progress or order has actually changed to avoid infinite loops
+    if (JSON.stringify(sortedObjectives) !== JSON.stringify(objectives)) {
+        setObjectives(sortedObjectives);
     }
   }, [objectives]);
 
@@ -350,6 +364,38 @@ function App() {
     if (progress > 70) return 'text-green-500';
     if (progress > 30) return 'text-yellow-500';
     return 'text-gray-500';
+  };
+
+  const getDueDateDisplay = (dueDate?: string) => {
+    if (!dueDate) return null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize today to midnight
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0); // Normalize due date to midnight
+
+    const diffTime = due.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    let dateText = '';
+    let textColorClass = 'text-gray-500'; // Default future dates
+
+    if (diffDays < 0) {
+      dateText = `Overdue by ${Math.abs(diffDays)} days`;
+      textColorClass = 'text-red-500';
+    } else if (diffDays === 0) {
+      dateText = 'Today';
+      textColorClass = 'text-red-500';
+    } else if (diffDays > 0) {
+      dateText = `D-${diffDays}`;
+      textColorClass = 'text-gray-500';
+    }
+
+    return (
+      <span className={`text-sm ml-2 ${textColorClass}`}>
+        ({dateText})
+      </span>
+    );
   };
 
   return (
@@ -412,6 +458,7 @@ function App() {
                       <div className="flex-grow flex items-center cursor-pointer" onClick={() => toggleObjectiveOpen(objective.id)}>
                           {objective.isOpen ? <ChevronDown size={20} className="mr-2 text-gray-500"/> : <ChevronRight size={20} className="mr-2 text-gray-500"/>}
                           <h2 className="text-lg font-semibold text-gray-700">{objective.title}</h2>
+                          {getDueDateDisplay(objective.dueDate)}
                       </div>
                       <div className="flex items-center">
                           <button onClick={(e) => {e.stopPropagation(); handleStartEditing(objective.id, objective.title);}} className="text-gray-400 hover:text-blue-500 mr-2"><Edit size={16}/></button>

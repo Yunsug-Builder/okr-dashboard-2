@@ -16,6 +16,7 @@ export const fetchObjectives = async (userId: string): Promise<Objective[]> => {
       progress: doc.data().progress || 0,
       keyResults: doc.data().keyResults || [],
       isOpen: doc.data().isOpen || false,
+      dueDate: doc.data().dueDate || undefined, // Map dueDate
     })) as Objective[];
     console.log('Objectives fetched successfully:', objectives);
     return objectives;
@@ -25,8 +26,8 @@ export const fetchObjectives = async (userId: string): Promise<Objective[]> => {
   }
 };
 
-export const addObjectiveToDB = async (title: string, userId: string): Promise<string> => {
-  console.log('Adding objective to Firestore:', { title, userId });
+export const addObjectiveToDB = async (title: string, userId: string, dueDate?: string): Promise<string> => {
+  console.log('Adding objective to Firestore:', { title, userId, dueDate });
   try {
     const newObjectiveRef = await addDoc(objectivesCollectionRef, {
       title,
@@ -34,6 +35,7 @@ export const addObjectiveToDB = async (title: string, userId: string): Promise<s
       keyResults: [],
       progress: 0,
       isOpen: false,
+      ...(dueDate && { dueDate }), // Conditionally add dueDate
     });
     console.log('Objective added successfully with ID:', newObjectiveRef.id);
     return newObjectiveRef.id;

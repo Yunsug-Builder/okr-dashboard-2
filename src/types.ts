@@ -2,6 +2,7 @@ export interface ActionItem {
   id: string;
   title: string;
   isCompleted: boolean;
+  dueDate?: string;
 }
 
 export interface KeyResult {
@@ -10,6 +11,7 @@ export interface KeyResult {
   progress: number;
   actionItems: ActionItem[];
   isOpen?: boolean; // <--- 이 친구가 없어서 에러가 났던 겁니다! (?: 있어도 되고 없어도 됨)
+  dueDate?: string;
 }
 
 export interface Objective {

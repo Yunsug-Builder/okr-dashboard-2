@@ -12,12 +12,22 @@ import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signO
 import type { User } from 'firebase/auth';
 import { app } from './firebase'; // Assuming 'app' is exported from firebase.ts
 
+type ModalType = 'OBJECTIVE' | 'KEY_RESULT' | 'ACTION_ITEM' | null;
+
 function App() {
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalType, setModalType] = useState<ModalType>(null);
+  const [targetObjectiveId, setTargetObjectiveId] = useState<string | null>(null);
+  const [targetKeyResultId, setTargetKeyResultId] = useState<string | null>(null);
+  const [newItemTitle, setNewItemTitle] = useState('');
+  const [newItemDate, setNewItemDate] = useState('');
 
   const auth = getAuth(app);
   const provider = new GoogleAuthProvider();
@@ -27,7 +37,6 @@ function App() {
       setUser(currentUser);
       setLoadingAuth(false);
       if (currentUser) {
-        // If user is logged in, fetch their objectives
         const getObjectives = async () => {
           try {
             const fetchedObjectives = await fetchObjectives(currentUser.uid);
@@ -38,7 +47,7 @@ function App() {
         };
         getObjectives();
       } else {
-        setObjectives([]); // Clear objectives if user logs out
+        setObjectives([]);
       }
     });
     return () => unsubscribe();
@@ -60,38 +69,104 @@ function App() {
     }
   };
 
-  const addObjective = async () => {
-    if (!user) return;
-    const title = window.prompt('Enter new objective title:');
-    if (title) {
-      let dueDate: string | undefined = window.prompt('Enter Due Date (YYYY-MM-DD) or leave empty:')?.trim();
-      if (dueDate === '') dueDate = undefined; // Treat empty string as undefined
+  // --- Modal Handlers ---
+  const openModal = (type: ModalType, objId: string | null = null, krId: string | null = null) => {
+    setModalType(type);
+    setTargetObjectiveId(objId);
+    setTargetKeyResultId(krId);
+    setNewItemTitle('');
+    setNewItemDate('');
+    setIsModalOpen(true);
+  };
 
-      try {
-        const newId = await addObjectiveToDB(title, user.uid, dueDate);
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setModalType(null);
+    setTargetObjectiveId(null);
+    setTargetKeyResultId(null);
+    setNewItemTitle('');
+    setNewItemDate('');
+  };
+
+  const handleSaveItem = async () => {
+    if (!user || !newItemTitle.trim()) {
+      alert("Title cannot be empty!");
+      return;
+    }
+
+    const itemDueDate = newItemDate.trim() === '' ? undefined : newItemDate;
+
+    try {
+      if (modalType === 'OBJECTIVE') {
+        const newId = await addObjectiveToDB(newItemTitle, user.uid, itemDueDate);
         if (newId) {
           const newObjective: Objective = {
             id: newId,
             userId: user.uid,
-            title,
+            title: newItemTitle,
             progress: 0,
             keyResults: [],
             isOpen: true,
-            dueDate: dueDate,
+            dueDate: itemDueDate,
           };
           setObjectives(prev => [...prev, newObjective]);
         }
-      } catch (error) {
-        console.error("Error adding objective:", error);
+      } else if (modalType === 'KEY_RESULT' && targetObjectiveId) {
+        const objective = objectives.find(o => o.id === targetObjectiveId);
+        if (!objective) return;
+
+        const newKeyResult: KeyResult = {
+          id: uuidv4(),
+          title: newItemTitle,
+          progress: 0,
+          actionItems: [],
+          isOpen: true,
+          dueDate: itemDueDate,
+        };
+        
+        const updatedKeyResults = [...objective.keyResults, newKeyResult];
+        const success = await updateObjectiveInDB(targetObjectiveId, { keyResults: updatedKeyResults });
+
+        if (success) {
+          setObjectives(prev =>
+            prev.map(obj =>
+              obj.id === targetObjectiveId ? { ...obj, keyResults: updatedKeyResults } : obj
+            )
+          );
+        }
+      } else if (modalType === 'ACTION_ITEM' && targetObjectiveId && targetKeyResultId) {
+        const objective = objectives.find(o => o.id === targetObjectiveId);
+        if (!objective) return;
+
+        const updatedKeyResults = objective.keyResults.map(kr => {
+          if (kr.id === targetKeyResultId) {
+            const newActionItem: ActionItem = { id: uuidv4(), title: newItemTitle, isCompleted: false, dueDate: itemDueDate };
+            return { ...kr, actionItems: [...kr.actionItems, newActionItem] };
+          }
+          return kr;
+        });
+
+        const success = await updateObjectiveInDB(targetObjectiveId, { keyResults: updatedKeyResults });
+        if (success) {
+          setObjectives(prev =>
+            prev.map(obj =>
+              obj.id === targetObjectiveId ? { ...obj, keyResults: updatedKeyResults } : obj
+            )
+          );
+        }
       }
+      closeModal();
+    } catch (error) {
+      console.error(`Error adding ${modalType}:`, error);
     }
   };
 
+  // --- CRUD Operations (modified to use modal) ---
   const deleteObjective = async (id: string) => {
     if (!user) return;
     if (window.confirm('Are you sure you want to delete this objective?')) {
       try {
-        const success = await deleteObjectiveFromDB(id); // userId is implicit via security rules
+        const success = await deleteObjectiveFromDB(id);
         if (success) {
           setObjectives(prev => prev.filter(objective => objective.id !== id));
         }
@@ -129,34 +204,6 @@ function App() {
     }
   };
 
-  const addKeyResult = async (objectiveId: string) => {
-    if (!user) return;
-    const title = window.prompt('Enter new key result title:');
-    if (title) {
-      const objective = objectives.find(o => o.id === objectiveId);
-      if (!objective) return;
-
-      const newKeyResult: KeyResult = {
-        id: uuidv4(),
-        title,
-        progress: 0,
-        actionItems: [],
-        isOpen: true,
-      };
-      
-      const updatedKeyResults = [...objective.keyResults, newKeyResult];
-      const success = await updateObjectiveInDB(objectiveId, { keyResults: updatedKeyResults });
-
-      if (success) {
-        setObjectives(prev =>
-          prev.map(obj =>
-            obj.id === objectiveId ? { ...obj, keyResults: updatedKeyResults } : obj
-          )
-        );
-      }
-    }
-  };
-
   const deleteKeyResult = async (objectiveId: string, keyResultId: string) => {
     if (!user) return;
      if (window.confirm('Are you sure you want to delete this key result?')) {
@@ -174,33 +221,6 @@ function App() {
             );
         }
      }
-  };
-
-  const addActionItem = async (objectiveId: string, keyResultId: string) => {
-    if (!user) return;
-    const title = window.prompt('Enter new action item title:');
-    if (title) {
-      const objective = objectives.find(o => o.id === objectiveId);
-      if (!objective) return;
-
-      const newActionItem: ActionItem = { id: uuidv4(), title, isCompleted: false };
-      
-      const updatedKeyResults = objective.keyResults.map(kr => {
-        if (kr.id === keyResultId) {
-          return { ...kr, actionItems: [...kr.actionItems, newActionItem] };
-        }
-        return kr;
-      });
-
-      const success = await updateObjectiveInDB(objectiveId, { keyResults: updatedKeyResults });
-      if (success) {
-        setObjectives(prev =>
-          prev.map(obj =>
-            obj.id === objectiveId ? { ...obj, keyResults: updatedKeyResults } : obj
-          )
-        );
-      }
-    }
   };
   
   const toggleActionItemCompletion = async (objectiveId: string, keyResultId: string, actionItemId: string) => {
@@ -309,15 +329,15 @@ function App() {
 
     // Sort objectives by due date
     const sortedObjectives = newObjectives.sort((a, b) => {
-      if (a.dueDate && b.dueDate) {
-        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-      }
-      if (a.dueDate) return -1; // Objectives with due dates come first
-      if (b.dueDate) return 1;  // Objectives with due dates come first
-      return 0; // Maintain original order if neither has a due date
+      // Objectives with no due date go to the end
+      if (!a.dueDate && !b.dueDate) return 0;
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      
+      // Sort by date ascending
+      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     });
 
-    // Only update state if progress or order has actually changed to avoid infinite loops
     if (JSON.stringify(sortedObjectives) !== JSON.stringify(objectives)) {
         setObjectives(sortedObjectives);
     }
@@ -381,7 +401,7 @@ function App() {
     let textColorClass = 'text-gray-500'; // Default future dates
 
     if (diffDays < 0) {
-      dateText = `Overdue by ${Math.abs(diffDays)} days`;
+      dateText = `Overdue`;
       textColorClass = 'text-red-500';
     } else if (diffDays === 0) {
       dateText = 'Today';
@@ -392,10 +412,23 @@ function App() {
     }
 
     return (
-      <span className={`text-sm ml-2 ${textColorClass}`}>
-        ({dateText})
+      <span className={`text-xs ml-2 font-medium ${textColorClass}`}>
+        {dueDate} ({dateText})
       </span>
     );
+  };
+
+  const getModalTitle = () => {
+    switch (modalType) {
+      case 'OBJECTIVE':
+        return 'New Objective';
+      case 'KEY_RESULT':
+        return 'New Key Result';
+      case 'ACTION_ITEM':
+        return 'New Action Item';
+      default:
+        return 'Add Item';
+    }
   };
 
   return (
@@ -446,7 +479,7 @@ function App() {
                       <input
                         type="text"
                         value={editingTitle}
-                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onChange={(e) => setNewItemTitle(e.target.value)} // Changed to newItemTitle
                         className="flex-grow p-1 border rounded-md"
                         autoFocus
                       />
@@ -481,6 +514,7 @@ function App() {
                            <div className="flex-grow flex items-center cursor-pointer" onClick={() => toggleKeyResultOpen(objective.id, kr.id)}>
                               {kr.isOpen ? <ChevronDown size={18} className="mr-2 text-gray-500"/> : <ChevronRight size={18} className="mr-2 text-gray-500"/>}
                               <p className="font-semibold text-gray-600">{kr.title}</p>
+                              {getDueDateDisplay(kr.dueDate)}
                            </div>
                            <button onClick={() => deleteKeyResult(objective.id, kr.id)} className="text-gray-400 hover:text-red-500 ml-2"><Trash2 size={14}/></button>
                       </div>
@@ -495,16 +529,17 @@ function App() {
                                       <div className="flex items-center">
                                           <input type="checkbox" checked={ai.isCompleted} onChange={() => toggleActionItemCompletion(objective.id, kr.id, ai.id)} className="mr-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"/>
                                           <span className={`text-sm ${ai.isCompleted ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{ai.title}</span>
+                                          {getDueDateDisplay(ai.dueDate)}
                                       </div>
                                       <button onClick={() => deleteActionItem(objective.id, kr.id, ai.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={12}/></button>
                                   </div>
                               ))}
-                              <button onClick={() => addActionItem(objective.id, kr.id)} className="text-sm text-blue-500 hover:text-blue-600 mt-2">+ Add Action Item</button>
+                              <button onClick={() => openModal('ACTION_ITEM', objective.id, kr.id)} className="text-sm text-blue-500 hover:text-blue-600 mt-2">+ Add Action Item</button>
                           </div>
                       )}
                     </div>
                   ))}
-                  <button onClick={() => addKeyResult(objective.id)} className="text-sm font-semibold text-blue-600 hover:text-blue-700 mt-3">+ Add Key Result</button>
+                  <button onClick={() => openModal('KEY_RESULT', objective.id)} className="text-sm font-semibold text-blue-600 hover:text-blue-700 mt-3">+ Add Key Result</button>
                 </div>
               )}
             </div>
@@ -513,12 +548,57 @@ function App() {
       </div>
 
       <button
-        onClick={addObjective}
+        onClick={() => openModal('OBJECTIVE')}
         className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-all"
         aria-label="Add Objective"
       >
         <Plus size={24} />
       </button>
+
+      {/* Add Item Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+            <h2 className="text-xl font-bold mb-4 text-gray-800">{getModalTitle()}</h2>
+            <div className="mb-4">
+              <label htmlFor="itemTitle" className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+              <input
+                type="text"
+                id="itemTitle"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={newItemTitle}
+                onChange={(e) => setNewItemTitle(e.target.value)}
+                placeholder="Enter title"
+                autoFocus
+              />
+            </div>
+            <div className="mb-6">
+              <label htmlFor="itemDueDate" className="block text-sm font-medium text-gray-700 mb-1">Due Date (Optional)</label>
+              <input
+                type="date"
+                id="itemDueDate"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={newItemDate}
+                onChange={(e) => setNewItemDate(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={closeModal}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveItem}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,14 +7,15 @@ export interface ActionItem {
 export interface KeyResult {
   id: string;
   title: string;
-  progress: number; // 0-100
+  progress: number;
   actionItems: ActionItem[];
+  isOpen?: boolean; // <--- 이 친구가 없어서 에러가 났던 겁니다! (?: 있어도 되고 없어도 됨)
 }
 
 export interface Objective {
   id: string;
   title: string;
-  progress: number; // 0-100
+  progress: number;
   keyResults: KeyResult[];
-  isOpen: boolean;
+  isOpen?: boolean; // 목표에도 isOpen이 필요합니다.
 }

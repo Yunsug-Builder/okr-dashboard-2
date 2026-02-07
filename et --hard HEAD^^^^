@@ -1,0 +1,31 @@
+[33m6383ba8[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m refactor: Complete component split
+[33ma525493[m refactor: Complete component split
+[33m378b05e[m refactor: Complete component split
+[33m6ff161d[m refactor: Split App.tsx into components
+[33m6250911[m feat: Implement date-based sorting for KeyResults and ActionItems
+[33mca30cf2[m fix: Remove dead code to fix build
+[33m5b9fd88[m feat: Retry Step 11 - Add Edit features and Modal integration
+[33m8e64d46[m feat: Replace window.prompt with custom modal & extend due dates
+[33m0f2e1c4[m feat: Implement due dates and sorting logic for objectives
+[33m4d68097[m feat: Implement dashboard analytics and enhance loading UI
+[33mc851aa9[m fix: Resolve TypeScript build errors in App.tsx and firebase.ts
+[33m0dd6aa4[m feat: Implement Firebase Authentication in App.tsx
+[33meb5e88d[m feat: Update data layer to support user ownership
+[33mf5a4b0d[m Update src/types.ts based on user's changes
+[33m34cb86d[m Fix: Consolidate components and fix CRUD functionality
+[33m96bbd6a[m fix: Debug and fix Firestore integration issues
+[33m54b9008[m fix: Resolve TypeScript build errors
+[33m43433b8[m feat: Migrate objectives data logic to Firestore (read and create)
+[33mfd1c8be[m feat: Install and initialize Firebase SDK
+[33m1591270[m fix: Resolve TypeScript errors and prop drilling issues
+[33m2d7cb46[m Refactor: Split App.tsx into functional components
+[33m0a1c217[m fix: Resolve TypeScript build error for ActionItem import
+[33m9914390[m feat: Implement Add Action Item functionality (deeply nested CRUD)
+[33ma72eddb[m fix: Resolve TypeScript build error for KeyResult import
+[33m7d45492[m feat: Implement Add Key Result functionality
+[33m8936b62[m feat: Implement Edit and Delete for Objectives with Inline Editing UI
+[33m24bda00[m feat: Implement "Add Objective" feature
+[33m2cf9c55[m feat: Cleanup boilerplate, fix TS errors, and configure Tailwind CSS
+[33ma043065[m feat: implement accordion interaction with collapsible Objective and KeyResults
+[33m83633c9[m chore: add package-lock.json
+[33m3fa5272[m Initialized workspace with Firebase Studio

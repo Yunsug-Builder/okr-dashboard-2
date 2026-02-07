@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Objective, KeyResult, ActionItem } from './types';
-import { Plus, Trash2, ChevronDown, ChevronRight, Edit, LogOut, LogIn } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, Edit, LogOut } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid'; // Used for generating unique IDs for new items
 import { 
   fetchObjectives, 
@@ -11,6 +11,7 @@ import {
 import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { app } from './firebase'; // Assuming 'app' is exported from firebase.ts
+import Auth from './components/Auth';
 
 type ModalType = 'OBJECTIVE' | 'KEY_RESULT' | 'ACTION_ITEM' | null; // Define modal types
 
@@ -388,18 +389,7 @@ function App() {
   }
 
   if (!user) {
-    return (
-      <div className="flex flex-col justify-center items-center min-h-screen bg-gray-100 p-4">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">Welcome to Objectives Dashboard</h1>
-        <p className="text-gray-600 mb-8 text-center">Please sign in to manage your objectives.</p>
-        <button 
-          onClick={signInWithGoogle} 
-          className="flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-all"
-        >
-          <LogIn size={20} className="mr-2" /> Sign in with Google
-        </button>
-      </div>
-    );
+    return <Auth onLogin={signInWithGoogle} loading={loadingAuth} />;
   }
 
   const getAvgProgressColorClass = (progress: number) => {

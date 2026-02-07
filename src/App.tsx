@@ -68,6 +68,18 @@ function App() {
     }
   };
 
+  // Helper function to compare items by dueDate
+  const compareByDate = (a: { dueDate?: string }, b: { dueDate?: string }) => {
+    const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+    const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+
+    if (dateA === dateB) {
+      return 0; // Maintain original order if dates are the same (or sort by creation if needed)
+    }
+    return dateA - dateB; // Sort by date ascending (earliest first)
+  };
+
+
   // --- Modal Handlers ---
   const openModal = (type: ModalType, objId: string | null = null, krId: string | null = null) => {
     setModalType(type);
@@ -321,41 +333,34 @@ function App() {
   };
   
   const memoizedObjectives = useMemo(() => {
-    const newObjectives = objectives.map(objective => {
-      if (!objective.keyResults || objective.keyResults.length === 0) {
-        return { ...objective, progress: 0 };
-      }
-      
-      const keyResultsWithProgress = objective.keyResults.map(kr => {
+    const objectivesWithProgressAndSorted = objectives.map(objective => {
+      // Calculate progress and sort ActionItems within each KeyResult
+      const keyResultsWithProgressAndSorted = objective.keyResults.map(kr => {
         if (!kr.actionItems || kr.actionItems.length === 0) {
-            return { ...kr, progress: 0 };
+            return { ...kr, progress: 0, actionItems: [] };
         }
         const completed = kr.actionItems.filter(ai => ai.isCompleted).length;
         const total = kr.actionItems.length;
         const progress = Math.round((completed / total) * 100);
-        return { ...kr, progress };
-      });
+        
+        // Sort ActionItems
+        const sortedActionItems = [...kr.actionItems].sort(compareByDate);
 
-      const totalProgress = keyResultsWithProgress.reduce((sum, kr) => sum + kr.progress, 0);
-      const overallProgress = Math.round(totalProgress / objective.keyResults.length);
+        return { ...kr, progress, actionItems: sortedActionItems };
+      }).sort(compareByDate); // Sort KeyResults
+
+      if (!keyResultsWithProgressAndSorted || keyResultsWithProgressAndSorted.length === 0) {
+        return { ...objective, progress: 0, keyResults: [] };
+      }
+
+      const totalProgress = keyResultsWithProgressAndSorted.reduce((sum, kr) => sum + kr.progress, 0);
+      const overallProgress = Math.round(totalProgress / keyResultsWithProgressAndSorted.length);
       
-      return { ...objective, progress: overallProgress, keyResults: keyResultsWithProgress };
+      return { ...objective, progress: overallProgress, keyResults: keyResultsWithProgressAndSorted };
     });
 
-    // Sort objectives by due date: undated last, then by date ascending
-    const sortedObjectives = [...newObjectives].sort((a, b) => { // Create a shallow copy to prevent direct mutation
-      if (!a.dueDate && !b.dueDate) {
-        return 0; // Maintain existing order if both have no due date
-      }
-      if (!a.dueDate) {
-        return 1; // b comes before a (a has no due date)
-      }
-      if (!b.dueDate) {
-        return -1; // a comes before b (b has no due date)
-      }
-      
-      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(); // Sort by date ascending
-    });
+    // Sort the main objectives array
+    const sortedObjectives = [...objectivesWithProgressAndSorted].sort(compareByDate);
 
     return sortedObjectives;
   }, [objectives]);

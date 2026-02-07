@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Objective, KeyResult, ActionItem } from './types';
-import { Plus, Trash2, ChevronDown, ChevronRight, Edit, Check, X, LogOut, LogIn, CalendarDays } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, Edit, LogOut, LogIn } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid'; // Used for generating unique IDs for new items
 import { 
   fetchObjectives, 
@@ -218,22 +218,7 @@ function App() {
     }
   };
   
-  // This function is for inline editing which is being replaced by the modal
-  // For now, it remains but the UI button will be removed.
-  const handleObjectiveTitleChange = async (id: string) => {
-    if (!user || newItemTitle.trim() === '') return; // Use newItemTitle from modal context
-    try {
-      await updateObjectiveInDB(id, { title: newItemTitle });
-      setObjectives(prev =>
-        prev.map(objective =>
-          objective.id === id ? { ...objective, title: newItemTitle } : objective
-        )
-      );
-      closeModal(); // Close modal after successful update
-    } catch (error) {
-      console.error(`Error updating objective ${id} title:`, error);
-    }
-  };
+
 
   const deleteKeyResult = async (objectiveId: string, keyResultId: string) => {
     if (!user) return;
@@ -335,8 +320,7 @@ function App() {
       }
   };
   
-  // Calculate progress and sort objectives
-  useEffect(() => {
+  const memoizedObjectives = useMemo(() => {
     const newObjectives = objectives.map(objective => {
       if (!objective.keyResults || objective.keyResults.length === 0) {
         return { ...objective, progress: 0 };
@@ -373,17 +357,14 @@ function App() {
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(); // Sort by date ascending
     });
 
-    // Only update state if progress or order has actually changed to avoid infinite loops
-    if (JSON.stringify(sortedObjectives) !== JSON.stringify(objectives)) { // Deep comparison to avoid unnecessary re-renders
-        setObjectives(sortedObjectives);
-    }
+    return sortedObjectives;
   }, [objectives]);
 
   // Derived state for analytics
   const { totalObjectives, avgProgress, completedObjectives } = useMemo(() => {
-    const total = objectives.length;
-    const completed = objectives.filter(obj => obj.progress === 100).length;
-    const totalProgressSum = objectives.reduce((sum, obj) => sum + obj.progress, 0);
+    const total = memoizedObjectives.length;
+    const completed = memoizedObjectives.filter(obj => obj.progress === 100).length;
+    const totalProgressSum = memoizedObjectives.reduce((sum, obj) => sum + obj.progress, 0);
     const average = total > 0 ? Math.round(totalProgressSum / total) : 0;
 
     return {
@@ -391,7 +372,7 @@ function App() {
       avgProgress: average,
       completedObjectives: completed,
     };
-  }, [objectives]);
+  }, [memoizedObjectives]);
 
   if (loadingAuth) {
     return (
@@ -504,10 +485,10 @@ function App() {
       </div>
 
       <div>
-        {objectives.length === 0 ? (
+        {memoizedObjectives.length === 0 ? (
           <p className="text-center text-gray-500 mt-10">No objectives found. Add your first objective!</p>
         ) : (
-          objectives.map((objective) => (
+          memoizedObjectives.map((objective) => (
             <div key={objective.id} className="bg-white rounded-lg shadow-md mb-4 overflow-hidden">
               <div className="p-4 border-b border-gray-200">
                  <div className="flex items-center justify-between">

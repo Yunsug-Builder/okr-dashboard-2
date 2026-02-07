@@ -61,7 +61,7 @@ export const updateObjectiveInDB = async (id: string, data: Partial<Objective>):
   console.log('Updating objective in Firestore with ID:', id, 'Data:', data);
   try {
     const docRef = doc(db, 'Objectives', id);
-    await updateDoc(docRef, data as { [key: string]: any });
+    await updateDoc(docRef, data);
     console.log('Objective updated successfully:', id);
     return true;
   } catch (error) {

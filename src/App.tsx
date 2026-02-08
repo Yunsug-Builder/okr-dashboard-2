@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Objective, KeyResult, ActionItem } from './types';
-import { Plus, Trash2, ChevronDown, ChevronRight, Edit, LogOut } from 'lucide-react';
+import { Plus, LogOut } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid'; // Used for generating unique IDs for new items
 import { 
   fetchObjectives, 
@@ -14,6 +14,8 @@ import { app } from './firebase'; // Assuming 'app' is exported from firebase.ts
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import ObjectiveList from './components/ObjectiveList';
+
+type ModalType = 'OBJECTIVE' | 'KEY_RESULT' | 'ACTION_ITEM' | null;
 
 
 

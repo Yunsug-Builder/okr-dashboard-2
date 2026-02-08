@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Objective, KeyResult, ActionItem } from '../types';
-import { Plus, Trash2, ChevronDown, ChevronRight, Edit } from 'lucide-react';
+import { Trash2, ChevronDown, ChevronRight, Edit } from 'lucide-react';
 
 type ModalType = 'OBJECTIVE' | 'KEY_RESULT' | 'ACTION_ITEM' | null;
 

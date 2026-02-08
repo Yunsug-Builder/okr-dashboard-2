@@ -12,6 +12,7 @@ import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signO
 import type { User } from 'firebase/auth';
 import { app } from './firebase'; // Assuming 'app' is exported from firebase.ts
 import Auth from './components/Auth';
+import Dashboard from './components/Dashboard';
 
 type ModalType = 'OBJECTIVE' | 'KEY_RESULT' | 'ACTION_ITEM' | null; // Define modal types
 
@@ -366,37 +367,7 @@ function App() {
     return sortedObjectives;
   }, [objectives]);
 
-  // Derived state for analytics
-  const { totalObjectives, avgProgress, completedObjectives } = useMemo(() => {
-    const total = memoizedObjectives.length;
-    const completed = memoizedObjectives.filter(obj => obj.progress === 100).length;
-    const totalProgressSum = memoizedObjectives.reduce((sum, obj) => sum + obj.progress, 0);
-    const average = total > 0 ? Math.round(totalProgressSum / total) : 0;
 
-    return {
-      totalObjectives: total,
-      avgProgress: average,
-      completedObjectives: completed,
-    };
-  }, [memoizedObjectives]);
-
-  if (loadingAuth) {
-    return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-100">
-        <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Auth onLogin={signInWithGoogle} loading={loadingAuth} />;
-  }
-
-  const getAvgProgressColorClass = (progress: number) => {
-    if (progress > 70) return 'text-green-500';
-    if (progress > 30) return 'text-yellow-500';
-    return 'text-gray-500';
-  };
 
   const getDueDateDisplay = (dueDate?: string) => {
     if (!dueDate) return null;
@@ -463,21 +434,7 @@ function App() {
         </div>
       </header>
 
-      {/* Metrics Section */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-white shadow-sm rounded-lg p-4 text-center">
-          <p className="text-sm text-gray-500">Total Objectives</p>
-          <p className="text-2xl font-bold text-gray-800">{totalObjectives}</p>
-        </div>
-        <div className="bg-white shadow-sm rounded-lg p-4 text-center">
-          <p className="text-sm text-gray-500">Average Progress</p>
-          <p className={`text-2xl font-bold ${getAvgProgressColorClass(avgProgress)}`}>{avgProgress}%</p>
-        </div>
-        <div className="bg-white shadow-sm rounded-lg p-4 text-center">
-          <p className="text-sm text-gray-500">Completed</p>
-          <p className="text-2xl font-bold text-gray-800">{completedObjectives}</p>
-        </div>
-      </div>
+      <Dashboard objectives={memoizedObjectives} />
 
       <div>
         {memoizedObjectives.length === 0 ? (

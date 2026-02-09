@@ -1,8 +1,6 @@
 import React from 'react';
-import type { Objective, KeyResult, ActionItem } from '../types';
+import type { Objective, KeyResult, ActionItem, ModalType } from '../types';
 import { Trash2, ChevronDown, ChevronRight, Edit } from 'lucide-react';
-
-type ModalType = 'OBJECTIVE' | 'KEY_RESULT' | 'ACTION_ITEM' | null;
 
 interface ObjectiveListProps {
   objectives: Objective[];
@@ -28,29 +26,28 @@ const ObjectiveList: React.FC<ObjectiveListProps> = ({
   onToggleKeyResultOpen,
 }) => {
 
-  const getDueDateDisplay = (dueDate?: string) => {
+  const getDueDateDisplay = (dueDate: string | null) => {
     if (!dueDate) return null;
 
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize today to midnight
+    today.setHours(0, 0, 0, 0);
     const due = new Date(dueDate);
-    due.setHours(0, 0, 0, 0); // Normalize due date to midnight
+    due.setHours(0, 0, 0, 0);
 
     const diffTime = due.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Days remaining/overdue
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     let dateText = '';
-    let textColorClass = 'text-gray-500'; // Default for future dates
+    let textColorClass = 'text-gray-400';
 
     if (diffDays < 0) {
       dateText = `Overdue`;
-      textColorClass = 'text-red-500';
+      textColorClass = 'text-red-400';
     } else if (diffDays === 0) {
       dateText = 'Today';
-      textColorClass = 'text-red-500';
+      textColorClass = 'text-red-400';
     } else if (diffDays > 0) {
       dateText = `D-${diffDays}`;
-      textColorClass = 'text-gray-500';
     }
 
     return (
@@ -60,77 +57,112 @@ const ObjectiveList: React.FC<ObjectiveListProps> = ({
     );
   };
 
-  return (
-    <div>
-      {objectives.length === 0 ? (
-        <p className="text-center text-gray-500 mt-10">No objectives found. Add your first objective!</p>
-      ) : (
-        objectives.map((objective) => (
-          <div key={objective.id} className="bg-white rounded-lg shadow-md mb-4 overflow-hidden">
-            <div className="p-4 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                 {/* Objective Display/Edit */}
-                  <div className="flex-grow flex items-center cursor-pointer" onClick={() => onToggleObjectiveOpen(objective.id)}>
-                       {objective.isOpen ? <ChevronDown size={20} className="mr-2 text-gray-500"/> : <ChevronRight size={20} className="mr-2 text-gray-500"/>}
-                       <h2 className="text-lg font-semibold text-gray-700">{objective.title}</h2>
-                       {getDueDateDisplay(objective.dueDate)}
-                   </div>
-                   <div className="flex items-center">
-                       <button onClick={(e) => {e.stopPropagation(); onEdit('OBJECTIVE', objective);}} className="text-gray-400 hover:text-blue-500 mr-2" aria-label="Edit Objective"><Edit size={16}/></button>
-                       <button onClick={(e) => {e.stopPropagation(); onDeleteObjective(objective.id);}} className="text-gray-400 hover:text-red-500" aria-label="Delete Objective"><Trash2 size={16}/></button>
-                   </div>
-               </div>
-               <div className="mt-2 h-2 w-full bg-gray-200 rounded-full">
-                 <div style={{ width: `${objective.progress}%` }} className="h-full bg-blue-500 rounded-full transition-all duration-500"></div>
-               </div>
-               <div className="text-right text-sm text-gray-500 mt-1">{objective.progress}%</div>
-             </div>
+  const renderActionItems = (actionItems: ActionItem[], objectiveId: string, keyResultId: string) => (
+    <ul className="pl-8 pr-4 py-2 space-y-2">
+      {actionItems.map(action => (
+        <li key={action.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-800/60 shadow-inner">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={action.isCompleted}
+              onChange={() => onToggleActionItemCompletion(objectiveId, keyResultId, action.id)}
+              className="form-checkbox h-5 w-5 text-purple-500 bg-gray-900 border-gray-700 rounded-sm focus:ring-purple-500/50 focus:ring-offset-gray-900"
+            />
+            <span className={`text-base ${action.isCompleted ? 'line-through text-gray-500' : 'text-gray-300'}`}>
+              {action.title}
+            </span>
+            {getDueDateDisplay(action.dueDate)}
+          </div>
+          <div className="flex items-center gap-4 opacity-70">
+            <Edit
+              size={18}
+              className="cursor-pointer text-gray-400 hover:text-purple-400 transition-colors"
+              onClick={() => onEdit('ACTION_ITEM', action, objectiveId, keyResultId)}
+            />
+            <Trash2
+              size={18}
+              className="cursor-pointer text-gray-400 hover:text-red-500 transition-colors"
+              onClick={() => onDeleteActionItem(objectiveId, keyResultId, action.id)}
+            />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
 
-             {objective.isOpen && (
-               <div className="p-4 bg-gray-50">
-                 {objective.keyResults.map(kr => (
-                   <div key={kr.id} className="mb-3 last:mb-0">
-                     <div className="flex items-center justify-between">
-                          <div className="flex-grow flex items-center cursor-pointer" onClick={() => onToggleKeyResultOpen(objective.id, kr.id)}>
-                             {kr.isOpen ? <ChevronDown size={18} className="mr-2 text-gray-500"/> : <ChevronRight size={18} className="mr-2 text-gray-500"/>}
-                             <p className="font-semibold text-gray-600">{kr.title}</p>
-                             {getDueDateDisplay(kr.dueDate)}
-                          </div>
-                          <div className="flex items-center">
-                              <button onClick={(e) => {e.stopPropagation(); onEdit('KEY_RESULT', kr, objective.id);}} className="text-gray-400 hover:text-blue-500 mr-2" aria-label="Edit Key Result"><Edit size={14}/></button>
-                              <button onClick={(e) => {e.stopPropagation(); onDeleteKeyResult(objective.id, kr.id);}} className="text-gray-400 hover:text-red-500" aria-label="Delete Key Result"><Trash2 size={14}/></button>
-                          </div>
-                     </div>
-                     <div className="mt-1 h-1.5 w-full bg-gray-200 rounded-full ml-6">
-                         <div style={{ width: `${kr.progress}%` }} className="h-full bg-green-500 rounded-full transition-all duration-500"></div>
-                     </div>
-                     
-                     {kr.isOpen && (
-                         <div className="pl-6 mt-2">
-                             {kr.actionItems.map(ai => (
-                                 <div key={ai.id} className="flex items-center justify-between py-1">
-                                     <div className="flex items-center">
-                                         <input type="checkbox" checked={ai.isCompleted} onChange={() => onToggleActionItemCompletion(objective.id, kr.id, ai.id)} className="mr-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"/>
-                                         <span className={`text-sm ${ai.isCompleted ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{ai.title}</span>
-                                         {getDueDateDisplay(ai.dueDate)}
-                                     </div>
-                                     <div className="flex items-center">
-                                         <button onClick={(e) => {e.stopPropagation(); onEdit('ACTION_ITEM', ai, objective.id, kr.id);}} className="text-gray-400 hover:text-blue-500 mr-2" aria-label="Edit Action Item"><Edit size={12}/></button>
-                                         <button onClick={(e) => {e.stopPropagation(); onDeleteActionItem(objective.id, kr.id, ai.id);}} className="text-gray-400 hover:text-red-500" aria-label="Delete Action Item"><Trash2 size={12}/></button>
-                                     </div>
-                                 </div>
-                             ))}
-                             <button onClick={() => onAdd('ACTION_ITEM', objective.id, kr.id)} className="text-sm text-blue-500 hover:text-blue-600 mt-2">+ Add Action Item</button>
-                         </div>
-                     )}
-                   </div>
-                 ))}
-                 <button onClick={() => onAdd('KEY_RESULT', objective.id)} className="text-sm font-semibold text-blue-600 hover:text-blue-700 mt-3">+ Add Key Result</button>
-               </div>
-             )}
-           </div>
-         ))
-       )}
+  const renderKeyResults = (keyResults: KeyResult[], objective: Objective) => (
+    <div className="pl-8 pr-4 pb-2 space-y-3">
+      {keyResults.map(kr => (
+        <div key={kr.id} className="bg-gray-800/50 rounded-lg shadow-lg overflow-hidden">
+          <div
+            className="p-4 flex items-center justify-between cursor-pointer"
+            onClick={() => onToggleKeyResultOpen(objective.id, kr.id)}
+          >
+            <div className="flex items-center gap-3">
+              {kr.isOpen ? <ChevronDown size={20} className="text-purple-400" /> : <ChevronRight size={20} className="text-purple-400" />}
+              <h3 className="text-lg font-semibold text-purple-300">{kr.title}</h3>
+              {getDueDateDisplay(kr.dueDate)}
+            </div>
+            <div className="flex items-center gap-4 opacity-80">
+              <button
+                className="text-xs bg-purple-600/50 hover:bg-purple-600/80 text-white font-bold py-1 px-3 rounded-full transition-all"
+                onClick={(e) => { e.stopPropagation(); onAdd('ACTION_ITEM', objective.id, kr.id); }}
+              >
+                Add Action
+              </button>
+              <Edit
+                size={20}
+                className="cursor-pointer text-gray-300 hover:text-purple-400 transition-colors"
+                onClick={(e) => { e.stopPropagation(); onEdit('KEY_RESULT', kr, objective.id); }}
+              />
+              <Trash2
+                size={20}
+                className="cursor-pointer text-gray-300 hover:text-red-500 transition-colors"
+                onClick={(e) => { e.stopPropagation(); onDeleteKeyResult(objective.id, kr.id); }}
+              />
+            </div>
+          </div>
+          {kr.isOpen && renderActionItems(kr.actionItems, objective.id, kr.id)}
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      {objectives.map(objective => (
+        <div key={objective.id} className="bg-gray-900/70 border border-gray-800/50 rounded-xl shadow-2xl backdrop-blur-sm overflow-hidden">
+          <div
+            className="p-5 flex items-center justify-between cursor-pointer"
+            onClick={() => onToggleObjectiveOpen(objective.id)}
+          >
+            <div className="flex items-center gap-4">
+              {objective.isOpen ? <ChevronDown size={24} className="text-teal-400" /> : <ChevronRight size={24} className="text-teal-400" />}
+              <h2 className="text-xl font-bold tracking-wide text-teal-300">{objective.title}</h2>
+              {getDueDateDisplay(objective.dueDate)}
+            </div>
+            <div className="flex items-center gap-4 opacity-80">
+              <button
+                className="text-sm bg-teal-600/50 hover:bg-teal-600/80 text-white font-bold py-2 px-4 rounded-full transition-all"
+                onClick={(e) => { e.stopPropagation(); onAdd('KEY_RESULT', objective.id); }}
+              >
+                Add Key Result
+              </button>
+              <Edit
+                size={22}
+                className="cursor-pointer text-gray-300 hover:text-teal-400 transition-colors"
+                onClick={(e) => { e.stopPropagation(); onEdit('OBJECTIVE', objective); }}
+              />
+              <Trash2
+                size={22}
+                className="cursor-pointer text-gray-300 hover:text-red-500 transition-colors"
+                onClick={(e) => { e.stopPropagation(); onDeleteObjective(objective.id); }}
+              />
+            </div>
+          </div>
+          {objective.isOpen && renderKeyResults(objective.keyResults, objective)}
+        </div>
+      ))}
     </div>
   );
 };

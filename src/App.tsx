@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
-import type { Objective, KeyResult, ActionItem } from './types';
+import type { Objective, KeyResult, ActionItem, ModalType } from './types';
 import { Plus, LogOut } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid'; // Used for generating unique IDs for new items
 import { 
@@ -18,8 +18,6 @@ const Auth = lazy(() => import('./components/Auth'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const ObjectiveList = lazy(() => import('./components/ObjectiveList'));
 
-type ModalType = 'OBJECTIVE' | 'KEY_RESULT' | 'ACTION_ITEM' | null;
-
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center min-h-screen bg-gray-100">
     <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
@@ -33,11 +31,12 @@ function App() {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalType, setModalType] = useState<ModalType>(null);
+  const [modalType, setModalType] = useState<ModalType | null>(null);
   const [targetObjectiveId, setTargetObjectiveId] = useState<string | null>(null);
   const [targetKeyResultId, setTargetKeyResultId] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [initialTitle, setInitialTitle] = useState('');
+  const [initialStartDate, setInitialStartDate] = useState('');
   const [initialDueDate, setInitialDueDate] = useState('');
 
   const auth = getAuth(app);
@@ -80,7 +79,7 @@ function App() {
     }
   };
 
-  const compareByDate = (a: { dueDate?: string }, b: { dueDate?: string }) => {
+  const compareByDate = (a: { dueDate?: string | null }, b: { dueDate?: string | null }) => {
     const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
     const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
     return dateA - dateB;
@@ -92,6 +91,7 @@ function App() {
     setTargetKeyResultId(krId);
     setEditingItemId(null);
     setInitialTitle('');
+    setInitialStartDate('');
     setInitialDueDate('');
     setIsModalOpen(true);
   };
@@ -102,6 +102,7 @@ function App() {
     setTargetKeyResultId(keyResultId || null);
     setEditingItemId(item.id);
     setInitialTitle(item.title);
+    setInitialStartDate(item.startDate || '');
     setInitialDueDate(item.dueDate || '');
     setIsModalOpen(true);
   };
@@ -110,25 +111,26 @@ function App() {
     setIsModalOpen(false);
   };
 
-  const handleSaveItem = async (title: string, _startDate: string, dueDate: string) => {
+  const handleSaveItem = async (title: string, startDate: string, dueDate: string) => {
     if (!user || !title.trim()) {
       alert("Title cannot be empty!");
       return;
     }
 
-    const itemDueDate = dueDate.trim() === '' ? undefined : dueDate;
+    const itemStartDate: string | null = startDate.trim() === '' ? null : startDate;
+    const itemDueDate: string | null = dueDate.trim() === '' ? null : dueDate;
 
     try {
       if (editingItemId) { // --- UPDATE MODE ---
         if (modalType === 'OBJECTIVE') {
-          await updateObjectiveInDB(editingItemId, { title, dueDate: itemDueDate });
-          setObjectives(prev => prev.map(obj => obj.id === editingItemId ? { ...obj, title, dueDate: itemDueDate } : obj));
+          await updateObjectiveInDB(editingItemId, { title, startDate: itemStartDate, dueDate: itemDueDate });
+          setObjectives(prev => prev.map(obj => obj.id === editingItemId ? { ...obj, title, startDate: itemStartDate, dueDate: itemDueDate } : obj));
         } else if (modalType === 'KEY_RESULT' && targetObjectiveId) {
           const objectiveToUpdate = objectives.find(obj => obj.id === targetObjectiveId);
           if (!objectiveToUpdate) return;
 
           const updatedKeyResults = objectiveToUpdate.keyResults.map(kr =>
-            kr.id === editingItemId ? { ...kr, title, dueDate: itemDueDate } : kr
+            kr.id === editingItemId ? { ...kr, title, startDate: itemStartDate, dueDate: itemDueDate } : kr
           );
           await updateObjectiveInDB(targetObjectiveId, { keyResults: updatedKeyResults });
           setObjectives(prev => prev.map(obj =>
@@ -154,7 +156,7 @@ function App() {
         }
       } else { // --- CREATE MODE ---
         if (modalType === 'OBJECTIVE') {
-          const newId = await addObjectiveToDB(title, user.uid, itemDueDate);
+          const newId = await addObjectiveToDB(title, user.uid, itemStartDate || undefined, itemDueDate || undefined);
           if (newId) {
             const newObjective: Objective = {
               id: newId,
@@ -163,6 +165,7 @@ function App() {
               progress: 0,
               keyResults: [],
               isOpen: true,
+              startDate: itemStartDate,
               dueDate: itemDueDate,
             };
             setObjectives(prev => [...prev, newObjective]);
@@ -177,6 +180,7 @@ function App() {
             progress: 0,
             actionItems: [],
             isOpen: true,
+            startDate: itemStartDate,
             dueDate: itemDueDate,
           };
           
@@ -394,6 +398,7 @@ function App() {
             onSave={handleSaveItem}
             modalTitle={getModalTitle()}
             initialTitle={initialTitle}
+            initialStartDate={initialStartDate}
             initialDueDate={initialDueDate}
           />
 

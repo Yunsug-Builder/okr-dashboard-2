@@ -1,8 +1,10 @@
+export type ModalType = 'OBJECTIVE' | 'KEY_RESULT' | 'ACTION_ITEM';
+
 export interface ActionItem {
   id: string;
   title: string;
   isCompleted: boolean;
-  dueDate?: string;
+  dueDate: string | null;
 }
 
 export interface KeyResult {
@@ -10,8 +12,9 @@ export interface KeyResult {
   title: string;
   progress: number;
   actionItems: ActionItem[];
-  isOpen?: boolean; // <--- 이 친구가 없어서 에러가 났던 겁니다! (?: 있어도 되고 없어도 됨)
-  dueDate?: string;
+  isOpen?: boolean;
+  dueDate: string | null;
+  startDate: string | null;
 }
 
 export interface Objective {
@@ -20,6 +23,7 @@ export interface Objective {
   title: string;
   progress: number;
   keyResults: KeyResult[];
-  isOpen?: boolean; // 목표에도 isOpen이 필요합니다.
-  dueDate?: string;
+  isOpen?: boolean;
+  dueDate: string | null;
+  startDate: string | null;
 }

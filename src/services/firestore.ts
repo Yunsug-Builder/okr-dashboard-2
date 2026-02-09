@@ -16,7 +16,8 @@ export const fetchObjectives = async (userId: string): Promise<Objective[]> => {
       progress: doc.data().progress || 0,
       keyResults: doc.data().keyResults || [],
       isOpen: doc.data().isOpen || false,
-      dueDate: doc.data().dueDate || undefined, // Map dueDate
+      dueDate: doc.data().dueDate || null,
+      startDate: doc.data().startDate || null,
     })) as Objective[];
     console.log('Objectives fetched successfully:', objectives);
     return objectives;
@@ -26,8 +27,8 @@ export const fetchObjectives = async (userId: string): Promise<Objective[]> => {
   }
 };
 
-export const addObjectiveToDB = async (title: string, userId: string, dueDate?: string): Promise<string> => {
-  console.log('Adding objective to Firestore:', { title, userId, dueDate });
+export const addObjectiveToDB = async (title: string, userId: string, startDate?: string, dueDate?: string): Promise<string> => {
+  console.log('Adding objective to Firestore:', { title, userId, startDate, dueDate });
   try {
     const newObjectiveRef = await addDoc(objectivesCollectionRef, {
       title,
@@ -35,7 +36,8 @@ export const addObjectiveToDB = async (title: string, userId: string, dueDate?: 
       keyResults: [],
       progress: 0,
       isOpen: false,
-      ...(dueDate && { dueDate }), // Conditionally add dueDate
+      startDate: startDate || null,
+      dueDate: dueDate || null,
     });
     console.log('Objective added successfully with ID:', newObjectiveRef.id);
     return newObjectiveRef.id;
@@ -44,6 +46,7 @@ export const addObjectiveToDB = async (title: string, userId: string, dueDate?: 
     return ''; // Return empty string on error
   }
 };
+
 export const deleteObjectiveFromDB = async (id: string): Promise<boolean> => {
   console.log('Deleting objective from Firestore with ID:', id);
   try {
@@ -61,7 +64,14 @@ export const updateObjectiveInDB = async (id: string, data: Partial<Objective>):
   console.log('Updating objective in Firestore with ID:', id, 'Data:', data);
   try {
     const docRef = doc(db, 'Objectives', id);
-    await updateDoc(docRef, data);
+    const updateData = { ...data };
+    if (data.dueDate === undefined) {
+      updateData.dueDate = null;
+    }
+    if (data.startDate === undefined) {
+      updateData.startDate = null;
+    }
+    await updateDoc(docRef, updateData);
     console.log('Objective updated successfully:', id);
     return true;
   } catch (error) {

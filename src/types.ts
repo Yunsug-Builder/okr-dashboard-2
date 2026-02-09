@@ -5,6 +5,7 @@ export interface ActionItem {
   title: string;
   isCompleted: boolean;
   dueDate: string | null;
+  startDate: string | null;
 }
 
 export interface KeyResult {

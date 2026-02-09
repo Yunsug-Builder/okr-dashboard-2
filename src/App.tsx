@@ -143,7 +143,7 @@ function App() {
           const updatedKeyResults = objectiveToUpdate.keyResults.map(kr => {
             if (kr.id === targetKeyResultId) {
               const updatedActionItems = kr.actionItems.map(ai =>
-                ai.id === editingItemId ? { ...ai, title, dueDate: itemDueDate } : ai
+                ai.id === editingItemId ? { ...ai, title, dueDate: itemDueDate, startDate: itemStartDate } : ai
               );
               return { ...kr, actionItems: updatedActionItems };
             }
@@ -198,7 +198,7 @@ function App() {
 
           const updatedKeyResults = objective.keyResults.map(kr => {
             if (kr.id === targetKeyResultId) {
-              const newActionItem: ActionItem = { id: uuidv4(), title, isCompleted: false, dueDate: itemDueDate };
+              const newActionItem: ActionItem = { id: uuidv4(), title, isCompleted: false, dueDate: itemDueDate, startDate: itemStartDate };
               return { ...kr, actionItems: [...kr.actionItems, newActionItem] };
             }
             return kr;

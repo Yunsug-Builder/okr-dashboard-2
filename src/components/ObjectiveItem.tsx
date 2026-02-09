@@ -42,33 +42,38 @@ export default function ObjectiveItem({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="bg-white shadow-md rounded-lg p-4 mb-4 pr-2">
-      <div className="flex items-center justify-between">
+    <div ref={setNodeRef} style={style} className="bg-white shadow-md rounded-lg p-4 mb-4">
+      <div className="flex items-center justify-between gap-4">
+        {/* Left Part: Drag handle, toggle, and title. Takes up remaining space. */}
         <div className="flex items-center flex-1 min-w-0">
-            <div {...attributes} {...listeners} className="cursor-move p-1 flex-shrink-0">
-                <GripVertical size={24} className="text-gray-400" />
-            </div>
-            <button onClick={onToggle} className="mr-2 flex-shrink-0">
-                {objective.isOpen ? <ChevronDown size={24} /> : <ChevronRight size={24} />}
-            </button>
-            <h2 className="text-xl font-bold text-gray-800 truncate flex-1">{objective.title}</h2>
+          <div {...attributes} {...listeners} className="cursor-move p-1 flex-shrink-0">
+            <GripVertical size={24} className="text-gray-400" />
+          </div>
+          <button onClick={onToggle} className="mr-2 flex-shrink-0">
+            {objective.isOpen ? <ChevronDown size={24} /> : <ChevronRight size={24} />}
+          </button>
+          <h2 className="text-xl font-bold text-gray-800 truncate">{objective.title}</h2>
         </div>
-        <div className="flex items-center flex-shrink-0 ml-3">
-            <div className="w-32 max-w-[150px] bg-gray-200 rounded-full h-4 mr-3 flex-shrink-0">
-                <div className="bg-green-500 h-4 rounded-full" style={{ width: `${objective.progress}%` }}></div>
-            </div>
-            <span className="text-gray-600 mr-3 text-sm flex-shrink-0">{objective.progress}%</span>
-            <div className="flex items-center gap-1">
-                <button onClick={onAddKeyResult} className="p-1 text-gray-500 hover:text-blue-600">
-                    <Plus size={20} />
-                </button>
-                <button onClick={onEdit} className="p-1 text-gray-500 hover:text-blue-600">
-                    <Edit size={20} />
-                </button>
-                <button onClick={onDelete} className="p-1 text-gray-500 hover:text-red-600">
-                    <Trash2 size={20} />
-                </button>
-            </div>
+
+        {/* Right Part: Progress bar and buttons. Fixed width. */}
+        <div className="flex items-center flex-shrink-0">
+          <div className="flex items-center w-40 flex-shrink-0 mx-4">
+              <div className="bg-gray-200 rounded-full h-4 w-full">
+                  <div className="bg-green-500 h-4 rounded-full" style={{ width: `${objective.progress}%` }}></div>
+              </div>
+              <span className="text-gray-600 ml-3 text-sm w-12 text-right flex-shrink-0">{objective.progress}%</span>
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button onClick={onAddKeyResult} className="p-1 text-gray-500 hover:text-blue-600">
+                <Plus size={20} />
+            </button>
+            <button onClick={onEdit} className="p-1 text-gray-500 hover:text-blue-600">
+                <Edit size={20} />
+            </button>
+            <button onClick={onDelete} className="p-1 text-gray-500 hover:text-red-600">
+                <Trash2 size={20} />
+            </button>
+          </div>
         </div>
       </div>
       {objective.isOpen && (

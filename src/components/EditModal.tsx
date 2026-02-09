@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 type EditModalProps = {
   isOpen: boolean;
@@ -23,14 +23,6 @@ const EditModal = ({
   const [startDate, setStartDate] = useState(initialStartDate);
   const [dueDate, setDueDate] = useState(initialDueDate);
 
-  useEffect(() => {
-    if (isOpen) {
-      setTitle(initialTitle);
-      setStartDate(initialStartDate);
-      setDueDate(initialDueDate);
-    }
-  }, [initialTitle, initialStartDate, initialDueDate, isOpen]);
-
   if (!isOpen) {
     return null;
   }
@@ -38,7 +30,6 @@ const EditModal = ({
   const handleSave = () => {
     if (title.trim()) {
       onSave(title, startDate, dueDate);
-      onClose(); 
     } else {
       alert('Title cannot be empty.');
     }
@@ -69,7 +60,7 @@ const EditModal = ({
               id="startDate"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-_500 transition"
             />
           </div>
           <div>

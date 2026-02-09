@@ -25,8 +25,10 @@ const LoadingSpinner = () => (
   </div>
 );
 
+type DndItem = Objective | KeyResult | ActionItem;
+
 interface FindResult {
-    container: any[];
+    container: DndItem[];
     index: number;
 }
 
@@ -36,6 +38,7 @@ function App() {
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalKey, setModalKey] = useState(uuidv4());
   const [modalType, setModalType] = useState<ModalType | null>(null);
   const [currentObjId, setCurrentObjId] = useState<string | null>(null);
   const [currentKrId, setCurrentKrId] = useState<string | null>(null);
@@ -100,6 +103,7 @@ function App() {
     setInitialTitle('');
     setInitialStartDate('');
     setInitialDueDate('');
+    setModalKey(uuidv4());
     setIsModalOpen(true);
   };
 
@@ -111,6 +115,7 @@ function App() {
     setInitialTitle(item.title);
     setInitialStartDate(item.startDate || '');
     setInitialDueDate(item.dueDate || '');
+    setModalKey(item.id);
     setIsModalOpen(true);
   };
 
@@ -347,16 +352,16 @@ function App() {
         setObjectives((prevObjectives) => {
             const newObjectives = JSON.parse(JSON.stringify(prevObjectives));
 
-            const findItemsAndIndices = (items: (Objective[] | KeyResult[] | ActionItem[]), id: string): FindResult | null => {
+            const findItemsAndIndices = (items: DndItem[], id: string): FindResult | null => {
                 for (let i = 0; i < items.length; i++) {
                     if (items[i].id === id) return { container: items, index: i };
-                    const currentItem = items[i] as any;
-                    if (currentItem.keyResults) {
-                        const result: FindResult | null = findItemsAndIndices(currentItem.keyResults, id);
+                    const currentItem = items[i];
+                    if ("keyResults" in currentItem && Array.isArray((currentItem as Objective).keyResults)) {
+                        const result: FindResult | null = findItemsAndIndices((currentItem as Objective).keyResults, id);
                         if (result) return result;
                     }
-                    if (currentItem.actionItems) {
-                        const result: FindResult | null = findItemsAndIndices(currentItem.actionItems, id);
+                    if ("actionItems" in currentItem && Array.isArray((currentItem as KeyResult).actionItems)) {
+                        const result: FindResult | null = findItemsAndIndices((currentItem as KeyResult).actionItems, id);
                         if (result) return result;
                     }
                 }
@@ -445,6 +450,7 @@ function App() {
                 </button>
 
                 <EditModal
+                    key={modalKey}
                     isOpen={isModalOpen}
                     onClose={closeModal}
                     onSave={handleSaveItem}

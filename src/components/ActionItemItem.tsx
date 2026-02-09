@@ -22,31 +22,38 @@ export default function ActionItemItem({ item, onToggle, onDelete, onEdit }: Act
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center bg-white p-2 rounded-md shadow-sm mb-2`}
+      className="flex items-center justify-between bg-white p-2 rounded-md shadow-sm mb-2 pr-2"
     >
-      <div {...attributes} {...listeners} className="cursor-move p-1">
-        <GripVertical size={16} className="text-gray-400" />
-      </div>
-      <input
-        type="checkbox"
-        checked={item.isCompleted}
-        onChange={onToggle}
-        className="mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-      />
-      <span className={`flex-grow ${item.isCompleted ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
-        {item.title}
-      </span>
-      {item.dueDate && (
-        <span className="text-sm text-gray-500 mr-3">
-          Due: {new Date(item.dueDate).toLocaleDateString()}
-        </span>
-      )}
-      <button onClick={onEdit} className="p-1 text-gray-500 hover:text-blue-600">
-        <Edit size={16} />
-      </button>
-      <button onClick={onDelete} className="p-1 text-gray-500 hover:text-red-600">
-        <Trash2 size={16} />
-      </button>
+        <div className="flex items-center flex-1 min-w-0">
+            <div {...attributes} {...listeners} className="cursor-move p-1 flex-shrink-0">
+                <GripVertical size={16} className="text-gray-400" />
+            </div>
+            <input
+                type="checkbox"
+                checked={item.isCompleted}
+                onChange={onToggle}
+                className="mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
+            />
+            <span className={`truncate ${item.isCompleted ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
+                {item.title}
+            </span>
+        </div>
+
+        <div className="flex items-center flex-shrink-0 ml-3">
+            {item.dueDate && (
+                <span className="text-sm text-gray-500 mr-3 whitespace-nowrap">
+                    Due: {new Date(item.dueDate).toLocaleDateString()}
+                </span>
+            )}
+            <div className="flex items-center gap-1">
+                <button onClick={onEdit} className="p-1 text-gray-500 hover:text-blue-600">
+                    <Edit size={16} />
+                </button>
+                <button onClick={onDelete} className="p-1 text-gray-500 hover:text-red-600">
+                    <Trash2 size={16} />
+                </button>
+            </div>
+        </div>
     </div>
   );
 }

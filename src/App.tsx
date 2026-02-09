@@ -12,7 +12,7 @@ import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signO
 import type { User } from 'firebase/auth';
 import { app } from './firebase';
 import EditModal from './components/EditModal';
-import { DndContext, closestCenter } from '@dnd-kit/core';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 
 const Auth = lazy(() => import('./components/Auth'));
@@ -37,8 +37,8 @@ function App() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<ModalType | null>(null);
-  const [targetObjectiveId, setTargetObjectiveId] = useState<string | null>(null);
-  const [targetKeyResultId, setTargetKeyResultId] = useState<string | null>(null);
+  const [currentObjId, setCurrentObjId] = useState<string | null>(null);
+  const [currentKrId, setCurrentKrId] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [initialTitle, setInitialTitle] = useState('');
   const [initialStartDate, setInitialStartDate] = useState('');
@@ -46,6 +46,14 @@ function App() {
 
   const auth = getAuth(app);
   const provider = new GoogleAuthProvider();
+  
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -86,8 +94,8 @@ function App() {
 
   const openModal = (type: ModalType, objId: string | null = null, krId: string | null = null) => {
     setModalType(type);
-    setTargetObjectiveId(objId);
-    setTargetKeyResultId(krId);
+    setCurrentObjId(objId);
+    setCurrentKrId(krId);
     setEditingItemId(null);
     setInitialTitle('');
     setInitialStartDate('');
@@ -97,8 +105,8 @@ function App() {
 
   const openEditModal = (type: ModalType, item: Objective | KeyResult | ActionItem, objectiveId?: string, keyResultId?: string) => {
     setModalType(type);
-    setTargetObjectiveId(objectiveId || (item as Objective).userId ? (item as Objective).id : null);
-    setTargetKeyResultId(keyResultId || null);
+    setCurrentObjId(objectiveId || null);
+    setCurrentKrId(keyResultId || null);
     setEditingItemId(item.id);
     setInitialTitle(item.title);
     setInitialStartDate(item.startDate || '');
@@ -121,37 +129,42 @@ function App() {
 
     try {
       if (editingItemId) { // --- UPDATE MODE ---
+        let objectiveToUpdate: Objective | undefined;
         if (modalType === 'OBJECTIVE') {
-          await updateObjectiveInDB(editingItemId, { title, startDate: itemStartDate, dueDate: itemDueDate });
-          setObjectives(prev => prev.map(obj => obj.id === editingItemId ? { ...obj, title, startDate: itemStartDate, dueDate: itemDueDate } : obj));
-        } else if (modalType === 'KEY_RESULT' && targetObjectiveId) {
-          const objectiveToUpdate = objectives.find(obj => obj.id === targetObjectiveId);
-          if (!objectiveToUpdate) return;
-
-          const updatedKeyResults = objectiveToUpdate.keyResults.map(kr =>
-            kr.id === editingItemId ? { ...kr, title, startDate: itemStartDate, dueDate: itemDueDate } : kr
-          );
-          await updateObjectiveInDB(targetObjectiveId, { keyResults: updatedKeyResults });
-          setObjectives(prev => prev.map(obj =>
-            obj.id === targetObjectiveId ? { ...obj, keyResults: updatedKeyResults } : obj
-          ));
-        } else if (modalType === 'ACTION_ITEM' && targetObjectiveId && targetKeyResultId) {
-          const objectiveToUpdate = objectives.find(obj => obj.id === targetObjectiveId);
-          if (!objectiveToUpdate) return;
-
-          const updatedKeyResults = objectiveToUpdate.keyResults.map(kr => {
-            if (kr.id === targetKeyResultId) {
-              const updatedActionItems = kr.actionItems.map(ai =>
-                ai.id === editingItemId ? { ...ai, title, dueDate: itemDueDate, startDate: itemStartDate } : ai
-              );
-              return { ...kr, actionItems: updatedActionItems };
+            objectiveToUpdate = objectives.find(obj => obj.id === editingItemId);
+            if(objectiveToUpdate){
+                const updatedObjective = { ...objectiveToUpdate, title, startDate: itemStartDate, dueDate: itemDueDate };
+                await updateObjectiveInDB(editingItemId, updatedObjective);
+                setObjectives(prev => prev.map(obj => obj.id === editingItemId ? updatedObjective : obj));
             }
-            return kr;
-          });
-          await updateObjectiveInDB(targetObjectiveId, { keyResults: updatedKeyResults });
-          setObjectives(prev => prev.map(obj =>
-            obj.id === targetObjectiveId ? { ...obj, keyResults: updatedKeyResults } : obj
-          ));
+        } else if (modalType === 'KEY_RESULT' && currentObjId) {
+            objectiveToUpdate = objectives.find(obj => obj.id === currentObjId);
+            if (!objectiveToUpdate) return;
+            const updatedKeyResults = objectiveToUpdate.keyResults.map(kr =>
+                kr.id === editingItemId ? { ...kr, title, startDate: itemStartDate, dueDate: itemDueDate } : kr
+            );
+            await updateObjectiveInDB(currentObjId, { keyResults: updatedKeyResults });
+            setObjectives(prev => prev.map(obj =>
+                obj.id === currentObjId ? { ...obj, keyResults: updatedKeyResults } : obj
+            ));
+
+        } else if (modalType === 'ACTION_ITEM' && currentObjId && currentKrId) {
+            objectiveToUpdate = objectives.find(obj => obj.id === currentObjId);
+            if (!objectiveToUpdate) return;
+
+            const updatedKeyResults = objectiveToUpdate.keyResults.map(kr => {
+                if (kr.id === currentKrId) {
+                    const updatedActionItems = kr.actionItems.map(ai =>
+                        ai.id === editingItemId ? { ...ai, title, dueDate: itemDueDate, startDate: itemStartDate } : ai
+                    );
+                    return { ...kr, actionItems: updatedActionItems };
+                }
+                return kr;
+            });
+            await updateObjectiveInDB(currentObjId, { keyResults: updatedKeyResults });
+            setObjectives(prev => prev.map(obj =>
+                obj.id === currentObjId ? { ...obj, keyResults: updatedKeyResults } : obj
+            ));
         }
       } else { // --- CREATE MODE ---
         if (modalType === 'OBJECTIVE') {
@@ -169,8 +182,8 @@ function App() {
             };
             setObjectives(prev => [...prev, newObjective]);
           }
-        } else if (modalType === 'KEY_RESULT' && targetObjectiveId) {
-          const objective = objectives.find(o => o.id === targetObjectiveId);
+        } else if (modalType === 'KEY_RESULT' && currentObjId) {
+          const objective = objectives.find(o => o.id === currentObjId);
           if (!objective) return;
 
           const newKeyResult: KeyResult = {
@@ -184,29 +197,29 @@ function App() {
           };
           
           const updatedKeyResults = [...objective.keyResults, newKeyResult];
-          await updateObjectiveInDB(targetObjectiveId, { keyResults: updatedKeyResults });
+          await updateObjectiveInDB(currentObjId, { keyResults: updatedKeyResults });
 
           setObjectives(prev =>
             prev.map(obj =>
-              obj.id === targetObjectiveId ? { ...obj, keyResults: updatedKeyResults } : obj
+              obj.id === currentObjId ? { ...obj, keyResults: updatedKeyResults } : obj
             )
           );
-        } else if (modalType === 'ACTION_ITEM' && targetObjectiveId && targetKeyResultId) {
-          const objective = objectives.find(o => o.id === targetObjectiveId);
+        } else if (modalType === 'ACTION_ITEM' && currentObjId && currentKrId) {
+          const objective = objectives.find(o => o.id === currentObjId);
           if (!objective) return;
 
           const updatedKeyResults = objective.keyResults.map(kr => {
-            if (kr.id === targetKeyResultId) {
+            if (kr.id === currentKrId) {
               const newActionItem: ActionItem = { id: uuidv4(), title, isCompleted: false, dueDate: itemDueDate, startDate: itemStartDate };
               return { ...kr, actionItems: [...kr.actionItems, newActionItem] };
             }
             return kr;
           });
 
-          await updateObjectiveInDB(targetObjectiveId, { keyResults: updatedKeyResults });
+          await updateObjectiveInDB(currentObjId, { keyResults: updatedKeyResults });
           setObjectives(prev =>
             prev.map(obj =>
-              obj.id === targetObjectiveId ? { ...obj, keyResults: updatedKeyResults } : obj
+              obj.id === currentObjId ? { ...obj, keyResults: updatedKeyResults } : obj
             )
           );
         }
@@ -387,7 +400,7 @@ function App() {
       {!user ? (
         <Auth onLogin={signInWithGoogle} loading={loadingAuth} />
       ) : (
-        <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <div className="max-w-[430px] mx-auto min-h-screen bg-gray-50 shadow-lg p-4 relative pb-20 font-sans">
                 <header className="mb-6 flex justify-between items-center">
                     <div>
@@ -413,10 +426,10 @@ function App() {
                     onToggleObjective={toggleObjectiveOpen}
                     onAddKeyResult={(objectiveId) => openModal('KEY_RESULT', objectiveId)}
                     onDeleteObjective={deleteObjective}
-                    onEditObjective={(objective) => openEditModal('OBJECTIVE', objective)}
+                    onEditObjective={(objective) => openEditModal('OBJECTIVE', objective, objective.id)}
                     onAddActionItem={(objectiveId, keyResultId) => openModal('ACTION_ITEM', objectiveId, keyResultId)}
                     onDeleteKeyResult={deleteKeyResult}
-                    onEditKeyResult={(objectiveId, keyResult) => openEditModal('KEY_RESULT', keyResult, objectiveId)}
+                    onEditKeyResult={(objectiveId, keyResult) => openEditModal('KEY_RESULT', keyResult, objectiveId, keyResult.id)}
                     onToggleKeyResult={toggleKeyResultOpen}
                     onToggleActionItem={toggleActionItemCompletion}
                     onDeleteActionItem={deleteActionItem}

@@ -36,20 +36,21 @@ export default function KeyResultItem({
   return (
     <div ref={setNodeRef} style={style} className="bg-gray-100 p-3 rounded-lg mb-3">
       <div className="flex items-center justify-between">
-        <div className="flex items-center">
+        <div className="flex items-center flex-1 min-w-0">
             <div {...attributes} {...listeners} className="cursor-move p-1">
                 <GripVertical size={20} className="text-gray-400" />
             </div>
             <button onClick={onToggle} className="mr-2">
                 {kr.isOpen ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
             </button>
-            <h3 className="text-lg font-semibold text-gray-800">{kr.title}</h3>
+            <h3 className="text-lg font-semibold text-gray-800 truncate">{kr.title}</h3>
         </div>
-        <div className="flex items-center">
-            <div className="w-32 bg-gray-200 rounded-full h-2.5 mr-3">
+        <div className="flex items-center flex-shrink-0 ml-3">
+            <div className="w-24 sm:w-32 bg-gray-200 rounded-full h-2.5 mr-3">
                 <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${kr.progress}%` }}></div>
             </div>
-            <span className="text-gray-600 mr-3">{kr.progress}%</span>
+            <span className="text-gray-600 mr-3 text-sm">{kr.progress}%</span>
+            <span className="text-gray-500 text-sm mr-3 whitespace-nowrap">{kr.dueDate}</span>
             <button onClick={onAddActionItem} className="p-1 text-gray-500 hover:text-blue-600">
                 <Plus size={16} />
             </button>

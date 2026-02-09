@@ -1,19 +1,20 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import type { Objective, KeyResult, ActionItem, ModalType } from './types';
 import { Plus, LogOut } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid'; // Used for generating unique IDs for new items
-import { 
-  fetchObjectives, 
-  addObjectiveToDB, 
+import { v4 as uuidv4 } from 'uuid';
+import {
+  fetchObjectives,
+  addObjectiveToDB,
   deleteObjectiveFromDB,
-  updateObjectiveInDB 
+  updateObjectiveInDB
 } from './services/firestore';
 import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import type { User } from 'firebase/auth';
-import { app } from './firebase'; // Assuming 'app' is exported from firebase.ts
+import { app } from './firebase';
 import EditModal from './components/EditModal';
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
 
-// Dynamically import components
 const Auth = lazy(() => import('./components/Auth'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const ObjectiveList = lazy(() => import('./components/ObjectiveList'));
@@ -24,12 +25,16 @@ const LoadingSpinner = () => (
   </div>
 );
 
+interface FindResult {
+    container: any[];
+    index: number;
+}
+
 function App() {
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<ModalType | null>(null);
   const [targetObjectiveId, setTargetObjectiveId] = useState<string | null>(null);
@@ -79,12 +84,6 @@ function App() {
     }
   };
 
-  const compareByDate = (a: { dueDate?: string | null }, b: { dueDate?: string | null }) => {
-    const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-    const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-    return dateA - dateB;
-  };
-
   const openModal = (type: ModalType, objId: string | null = null, krId: string | null = null) => {
     setModalType(type);
     setTargetObjectiveId(objId);
@@ -98,7 +97,7 @@ function App() {
 
   const openEditModal = (type: ModalType, item: Objective | KeyResult | ActionItem, objectiveId?: string, keyResultId?: string) => {
     setModalType(type);
-    setTargetObjectiveId(objectiveId || null);
+    setTargetObjectiveId(objectiveId || (item as Objective).userId ? (item as Objective).id : null);
     setTargetKeyResultId(keyResultId || null);
     setEditingItemId(item.id);
     setInitialTitle(item.title);
@@ -291,9 +290,6 @@ function App() {
   };
 
   const toggleObjectiveOpen = async (id: string) => {
-    const objective = objectives.find(o => o.id === id);
-    if (!objective) return;
-    await updateObjectiveInDB(id, { isOpen: !objective.isOpen });
     setObjectives(prev =>
       prev.map(obj =>
         obj.id === id ? { ...obj, isOpen: !obj.isOpen } : obj
@@ -302,18 +298,16 @@ function App() {
   };
 
   const toggleKeyResultOpen = async (objectiveId: string, keyResultId: string) => {
-    const objective = objectives.find(o => o.id === objectiveId);
-    if (!objective) return;
-
-    const updatedKeyResults = objective.keyResults.map(kr =>
-      kr.id === keyResultId ? { ...kr, isOpen: !kr.isOpen } : kr
-    );
-
-    await updateObjectiveInDB(objectiveId, { keyResults: updatedKeyResults });
     setObjectives(prev =>
-      prev.map(obj =>
-        obj.id === objectiveId ? { ...obj, keyResults: updatedKeyResults } : obj
-      )
+      prev.map(obj => {
+        if (obj.id === objectiveId) {
+          const updatedKeyResults = obj.keyResults.map(kr =>
+            kr.id === keyResultId ? { ...kr, isOpen: !kr.isOpen } : kr
+          );
+          return { ...obj, keyResults: updatedKeyResults };
+        }
+        return obj;
+      })
     );
   };
 
@@ -323,15 +317,56 @@ function App() {
         const completed = kr.actionItems.filter(ai => ai.isCompleted).length;
         const total = kr.actionItems.length;
         const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
-        return { ...kr, progress, actionItems: [...kr.actionItems].sort(compareByDate) };
-      }).sort(compareByDate);
+        return { ...kr, progress, actionItems: [...kr.actionItems] };
+      });
 
       const totalProgress = keyResultsWithProgress.reduce((sum, kr) => sum + kr.progress, 0);
       const overallProgress = keyResultsWithProgress.length > 0 ? Math.round(totalProgress / keyResultsWithProgress.length) : 0;
 
       return { ...objective, progress: overallProgress, keyResults: keyResultsWithProgress };
-    }).sort(compareByDate);
+    });
   }, [objectives]);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+        setObjectives((prevObjectives) => {
+            const newObjectives = JSON.parse(JSON.stringify(prevObjectives));
+
+            const findItemsAndIndices = (items: (Objective[] | KeyResult[] | ActionItem[]), id: string): FindResult | null => {
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].id === id) return { container: items, index: i };
+                    const currentItem = items[i] as any;
+                    if (currentItem.keyResults) {
+                        const result: FindResult | null = findItemsAndIndices(currentItem.keyResults, id);
+                        if (result) return result;
+                    }
+                    if (currentItem.actionItems) {
+                        const result: FindResult | null = findItemsAndIndices(currentItem.actionItems, id);
+                        if (result) return result;
+                    }
+                }
+                return null;
+            }
+
+            const activeResult = findItemsAndIndices(newObjectives, active.id as string);
+            const overResult = findItemsAndIndices(newObjectives, over.id as string);
+
+            if (activeResult && overResult && activeResult.container === overResult.container) {
+                const { container, index: oldIndex } = activeResult;
+                const { index: newIndex } = overResult;
+                
+                const [movedItem] = container.splice(oldIndex, 1);
+                container.splice(newIndex, 0, movedItem);
+
+                return newObjectives;
+            }
+
+            return prevObjectives;
+        });
+    }
+  };
 
   if (loadingAuth) {
     return <LoadingSpinner />;
@@ -352,57 +387,62 @@ function App() {
       {!user ? (
         <Auth onLogin={signInWithGoogle} loading={loadingAuth} />
       ) : (
-        <div className="max-w-[430px] mx-auto min-h-screen bg-gray-50 shadow-lg p-4 relative pb-20 font-sans">
-          <header className="mb-6 flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800">Objectives</h1>
-              <p className="text-gray-500">Your roadmap to success.</p>
+        <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <div className="max-w-[430px] mx-auto min-h-screen bg-gray-50 shadow-lg p-4 relative pb-20 font-sans">
+                <header className="mb-6 flex justify-between items-center">
+                    <div>
+                    <h1 className="text-3xl font-bold text-gray-800">Objectives</h1>
+                    <p className="text-gray-500">Your roadmap to success.</p>
+                    </div>
+                    <div className="flex items-center">
+                    {user.displayName && <span className="text-gray-700 mr-2 hidden sm:block">Hello, {user.displayName}</span>}
+                    <button
+                        onClick={signOutUser}
+                        className="p-2 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-50 transition-all"
+                        aria-label="Sign out"
+                    >
+                        <LogOut size={20} />
+                    </button>
+                    </div>
+                </header>
+
+                <Dashboard objectives={memoizedObjectives} />
+
+                <ObjectiveList
+                    objectives={memoizedObjectives}
+                    onToggleObjective={toggleObjectiveOpen}
+                    onAddKeyResult={(objectiveId) => openModal('KEY_RESULT', objectiveId)}
+                    onDeleteObjective={deleteObjective}
+                    onEditObjective={(objective) => openEditModal('OBJECTIVE', objective)}
+                    onAddActionItem={(objectiveId, keyResultId) => openModal('ACTION_ITEM', objectiveId, keyResultId)}
+                    onDeleteKeyResult={deleteKeyResult}
+                    onEditKeyResult={(objectiveId, keyResult) => openEditModal('KEY_RESULT', keyResult, objectiveId)}
+                    onToggleKeyResult={toggleKeyResultOpen}
+                    onToggleActionItem={toggleActionItemCompletion}
+                    onDeleteActionItem={deleteActionItem}
+                    onEditActionItem={(objectiveId, keyResultId, actionItem) => openEditModal('ACTION_ITEM', actionItem, objectiveId, keyResultId)}
+                />
+
+                <button
+                    onClick={() => openModal('OBJECTIVE')}
+                    className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-all"
+                    aria-label="Add Objective"
+                >
+                    <Plus size={24} />
+                </button>
+
+                <EditModal
+                    isOpen={isModalOpen}
+                    onClose={closeModal}
+                    onSave={handleSaveItem}
+                    modalTitle={getModalTitle()}
+                    initialTitle={initialTitle}
+                    initialStartDate={initialStartDate}
+                    initialDueDate={initialDueDate}
+                />
+
             </div>
-            <div className="flex items-center">
-              {user.displayName && <span className="text-gray-700 mr-2 hidden sm:block">Hello, {user.displayName}</span>}
-              <button
-                onClick={signOutUser}
-                className="p-2 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-50 transition-all"
-                aria-label="Sign out"
-              >
-                <LogOut size={20} />
-              </button>
-            </div>
-          </header>
-
-          <Dashboard objectives={memoizedObjectives} />
-
-          <ObjectiveList
-            objectives={memoizedObjectives}
-            onAdd={openModal}
-            onEdit={openEditModal}
-            onDeleteObjective={deleteObjective}
-            onDeleteKeyResult={deleteKeyResult}
-            onToggleActionItemCompletion={toggleActionItemCompletion}
-            onDeleteActionItem={deleteActionItem}
-            onToggleObjectiveOpen={toggleObjectiveOpen}
-            onToggleKeyResultOpen={toggleKeyResultOpen}
-          />
-
-          <button
-            onClick={() => openModal('OBJECTIVE')}
-            className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-all"
-            aria-label="Add Objective"
-          >
-            <Plus size={24} />
-          </button>
-
-          <EditModal 
-            isOpen={isModalOpen}
-            onClose={closeModal}
-            onSave={handleSaveItem}
-            modalTitle={getModalTitle()}
-            initialTitle={initialTitle}
-            initialStartDate={initialStartDate}
-            initialDueDate={initialDueDate}
-          />
-
-        </div>
+        </DndContext>
       )}
     </Suspense>
   );

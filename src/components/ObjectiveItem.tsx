@@ -52,18 +52,23 @@ export default function ObjectiveItem({
           <button onClick={onToggle} className="mr-2 flex-shrink-0">
             {objective.isOpen ? <ChevronDown size={24} /> : <ChevronRight size={24} />}
           </button>
-          <h2 className="text-xl font-bold text-gray-800 truncate">{objective.title}</h2>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl font-bold text-gray-800 truncate">{objective.title}</h2>
+            {(objective.startDate && objective.dueDate) &&
+              <p className="text-xs text-gray-500 whitespace-nowrap">{new Date(objective.startDate).toLocaleDateString()} - {new Date(objective.dueDate).toLocaleDateString()}</p>
+            }
+          </div>
         </div>
 
         {/* Right Part: Progress bar and buttons. Fixed width. */}
-        <div className="flex items-center flex-shrink-0">
-          <div className="flex items-center w-40 flex-shrink-0 mx-4">
+        <div className="flex items-center flex-none">
+          <div className="flex items-center w-20 flex-none mx-4">
               <div className="bg-gray-200 rounded-full h-4 w-full">
                   <div className="bg-green-500 h-4 rounded-full" style={{ width: `${objective.progress}%` }}></div>
               </div>
               <span className="text-gray-600 ml-3 text-sm w-12 text-right flex-shrink-0">{objective.progress}%</span>
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex items-center gap-1 flex-none">
             <button onClick={onAddKeyResult} className="p-1 text-gray-500 hover:text-blue-600">
                 <Plus size={20} />
             </button>

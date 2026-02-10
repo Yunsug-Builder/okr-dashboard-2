@@ -33,7 +33,7 @@ export default function ObjectiveItem({ objective }: ObjectiveItemProps) {
       <div className="flex flex-col w-full">
         {/* Row 1: Title and Expander */}
         <div className="flex items-start">
-            <div {...attributes} {...listeners} className="cursor-move p-1 flex-none">
+            <div {...attributes} {...listeners} className="cursor-move p-1 flex-none touch-none select-none">
                 <GripVertical size={24} className="text-gray-400" />
             </div>
             <button onClick={() => onToggleObjective(objective.id)} className="mr-2 flex-none pt-0.5">

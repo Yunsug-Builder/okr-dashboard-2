@@ -37,6 +37,7 @@ function App() {
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalKey, setModalKey] = useState(uuidv4());
@@ -129,6 +130,7 @@ function App() {
       alert("Title cannot be empty!");
       return;
     }
+    setIsSaving(true);
 
     const itemStartDate: string | null = startDate.trim() === '' ? null : startDate;
     const itemDueDate: string | null = dueDate.trim() === '' ? null : dueDate;
@@ -233,6 +235,8 @@ function App() {
       closeModal();
     } catch (error) {
       console.error(`Error saving ${modalType}:`, error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -447,15 +451,21 @@ function App() {
 
                 <button
                     onClick={() => openModal('OBJECTIVE')}
-                    className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-all"
+                    disabled={isSaving}
+                    className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     aria-label="Add Objective"
                 >
+                  {isSaving ? (
+                    <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></div>
+                  ) : (
                     <Plus size={24} />
+                  )}
                 </button>
 
                 <EditModal
                     key={modalKey}
                     isOpen={isModalOpen}
+                    isSaving={isSaving}
                     onClose={closeModal}
                     onSave={handleSaveItem}
                     modalTitle={getModalTitle()}

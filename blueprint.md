@@ -18,16 +18,15 @@ This document outlines the structure, features, and development plan for the OKR
 *   **Date-Based Sorting:** All items are sorted by their due date.
 *   **Modal-Based Editing:** A unified modal is used for creating and editing all types of items.
 *   **Drag-and-Drop Reordering:** Users can reorder objectives, key results within an objective, and action items within a key result using a drag-and-drop interface.
+*   **Context API Refactoring:** The codebase was refactored to use the React Context API, eliminating prop drilling and improving maintainability.
 
-## Current Task: Refactor to Eliminate Prop Drilling
+## Current Task: Fix Missing Loading State
 
-**Goal:** Refactor the component hierarchy to eliminate prop drilling by using React's Context API.
+**Goal:** Prevent double submissions and provide visual feedback to the user during save operations.
 
 **Plan:**
 
-1.  **[DONE]** Create `src/contexts/ObjectiveContext.tsx` to define a new `ObjectiveContext` that will hold all the callback functions.
-2.  **[DONE]** In `App.tsx`, wrap the `ObjectiveList` component with an `ObjectiveContext.Provider` and pass a `contextValue` object containing all the handler functions.
-3.  **[DONE]** Refactor `ObjectiveList.tsx` to remove all the callback props that are now provided by the context.
-4.  **[DONE]** Refactor `ObjectiveItem.tsx` to use the `useObjectiveContext` hook and call the context functions directly.
-5.  **[DONE]** Refactor `KeyResultItem.tsx` to use the `useObjectiveContext` hook and call the context functions directly.
-6.  **[DONE]** Refactor `ActionItemItem.tsx` to use the `useObjectiveContext` hook and call the context functions directly.
+1.  **[DONE]** Introduce an `isSaving` state variable in `App.tsx`.
+2.  **[DONE]** Disable the "Add New Objective" and "Save" buttons when `isSaving` is true.
+3.  **[DONE]** Display a loading indicator on the buttons during the save operation.
+4.  **[DONE]** Pass the `isSaving` state to the `EditModal` component.

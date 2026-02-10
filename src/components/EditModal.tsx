@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 type EditModalProps = {
   isOpen: boolean;
+  isSaving: boolean;
   onClose: () => void;
   onSave: (title: string, startDate: string, dueDate: string) => void;
   modalTitle: string;
@@ -12,6 +13,7 @@ type EditModalProps = {
 
 const EditModal = ({ 
   isOpen, 
+  isSaving,
   onClose, 
   onSave, 
   modalTitle,
@@ -60,7 +62,7 @@ const EditModal = ({
               id="startDate"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-_500 transition"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
             />
           </div>
           <div>
@@ -84,9 +86,10 @@ const EditModal = ({
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition shadow-sm"
+            disabled={isSaving}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save
+            {isSaving ? 'Saving...' : 'Save'}
           </button>
         </div>
       </div>

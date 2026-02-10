@@ -25,12 +25,12 @@ export default function ActionItemItem({ item, onToggle, onDelete, onEdit }: Act
     <div
       ref={setNodeRef}
       style={style}
-      className="flex flex-col bg-white p-2 rounded-md shadow-sm mb-2 gap-1"
+      className="flex flex-col bg-white p-2.5 rounded-md shadow-sm mb-2 gap-2"
     >
         {/* Row 1: Checkbox and Title */}
         <div className="flex items-start gap-2">
             <div {...attributes} {...listeners} className="cursor-move p-1 flex-none">
-                <GripVertical size={16} className="text-gray-400" />
+                <GripVertical size={18} className="text-gray-400" />
             </div>
             <input
                 type="checkbox"
@@ -45,11 +45,13 @@ export default function ActionItemItem({ item, onToggle, onDelete, onEdit }: Act
 
         {/* Row 2: Meta Info & Buttons (indented) */}
         <div className="flex items-center justify-between w-full pl-12">
-            {dDay ? (
-                <span className={`text-xs px-1 rounded ${dDay.colorClass}`}>
-                    {dDay.text}
-                </span>
-            ) : <span />}
+            <div className="flex-1">
+                {dDay && (
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${dDay.colorClass}`}>
+                        {dDay.text}
+                    </span>
+                )}
+            </div>
             <div className="flex gap-1 flex-none">
                 <button onClick={onEdit} className="p-1 text-gray-500 hover:text-blue-600">
                     <Edit size={16} />

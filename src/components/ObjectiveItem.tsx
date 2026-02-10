@@ -45,14 +45,14 @@ export default function ObjectiveItem({
   const dDay = objective.dueDate ? getDDay(objective.dueDate) : null;
 
   return (
-    <div ref={setNodeRef} style={style} className="bg-white shadow-md rounded-lg p-2 mb-4">
+    <div ref={setNodeRef} style={style} className="bg-white shadow-md rounded-lg p-3 mb-4">
       <div className="flex flex-col w-full">
         {/* Row 1: Title and Expander */}
         <div className="flex items-start">
             <div {...attributes} {...listeners} className="cursor-move p-1 flex-none">
                 <GripVertical size={24} className="text-gray-400" />
             </div>
-            <button onClick={onToggle} className="mr-2 flex-none">
+            <button onClick={onToggle} className="mr-2 flex-none pt-0.5">
                 {objective.isOpen ? <ChevronDown size={24} /> : <ChevronRight size={24} />}
             </button>
             <h2 className="flex-1 font-bold mb-1 text-sm line-clamp-2">
@@ -60,13 +60,23 @@ export default function ObjectiveItem({
             </h2>
         </div>
 
-        {/* Row 2: Meta Info & Buttons */}
-        <div className="flex items-center justify-between w-full mb-2 pl-10">
-            {dDay ? (
-                <span className={`text-xs px-1 rounded ${dDay.colorClass}`}>
-                    {dDay.text}
-                </span>
-            ) : <span />}
+        {/* Row 2: Hybrid Row (Meta, Progress, Buttons) */}
+        <div className="flex items-center justify-between gap-3 w-full pl-10 mt-1">
+            {/* Left: D-Day Badge */}
+            <div className="flex-none">
+                {dDay && (
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${dDay.colorClass}`}>
+                        {dDay.text}
+                    </span>
+                )}
+            </div>
+
+            {/* Middle: Progress Bar */}
+            <div className="bg-gray-200 rounded-full h-2 flex-1">
+                <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${objective.progress}%` }}></div>
+            </div>
+
+            {/* Right: Buttons */}
             <div className="flex gap-1 flex-none">
                 <button onClick={onAddKeyResult} className="p-1 text-gray-500 hover:text-blue-600">
                     <Plus size={20} />
@@ -78,11 +88,6 @@ export default function ObjectiveItem({
                     <Trash2 size={20} />
                 </button>
             </div>
-        </div>
-
-        {/* Row 3: Progress Bar */}
-        <div className="w-full bg-gray-100 rounded-full h-1.5 ml-10">
-            <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${objective.progress}%` }}></div>
         </div>
       </div>
 
@@ -101,7 +106,7 @@ export default function ObjectiveItem({
                 onDeleteActionItem={(actionItemId) => onDeleteActionItem(kr.id, actionItemId)}
                 onEditActionItem={(actionItem) => onEditActionItem(kr.id, actionItem)}
               />
-            ))}
+            ))}\
           </SortableContext>
         </div>
       )}

@@ -17,19 +17,17 @@ This document outlines the structure, features, and development plan for the OKR
 *   **Nested, Collapsible UI:** The user interface presents the OKR hierarchy in a nested and collapsible format, making it easy to navigate and manage.
 *   **Date-Based Sorting:** All items are sorted by their due date.
 *   **Modal-Based Editing:** A unified modal is used for creating and editing all types of items.
+*   **Drag-and-Drop Reordering:** Users can reorder objectives, key results within an objective, and action items within a key result using a drag-and-drop interface.
 
-## Current Task: Implement Drag-and-Drop Reordering
+## Current Task: Refactor to Eliminate Prop Drilling
 
-**Goal:** Enable users to reorder objectives, key results within an objective, and action items within a key result using a drag-and-drop interface.
-
-**Library:** `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`
+**Goal:** Refactor the component hierarchy to eliminate prop drilling by using React's Context API.
 
 **Plan:**
 
-1.  **[DONE]** Install necessary `@dnd-kit` packages.
-2.  **[DONE]** Create `blueprint.md` for project documentation.
-3.  **Refactor Components:** Break down `ObjectiveList.tsx` into smaller, more focused components (`ObjectiveItem.tsx`, `KeyResultItem.tsx`, `ActionItemItem.tsx`) to simplify the implementation of drag-and-drop.
-4.  **Create Reusable `SortableItem`:** Develop a generic `SortableItem.tsx` component that encapsulates the `useSortable` hook and handles the drag-and-drop styles and attributes.
-5.  **Integrate `DndContext`:** Wrap the main list in `App.tsx` with `DndContext` to manage the drag-and-drop state.
-6.  **Implement `SortableContext`:** Use `SortableContext` for each list (objectives, key results, and action items) to enable sorting within those lists.
-7.  **Update State in `App.tsx`:** Implement the `handleDragEnd` function to optimistically update the `objectives` state in `App.tsx` when an item is moved. The function will initially log the new order to the console for verification.
+1.  **[DONE]** Create `src/contexts/ObjectiveContext.tsx` to define a new `ObjectiveContext` that will hold all the callback functions.
+2.  **[DONE]** In `App.tsx`, wrap the `ObjectiveList` component with an `ObjectiveContext.Provider` and pass a `contextValue` object containing all the handler functions.
+3.  **[DONE]** Refactor `ObjectiveList.tsx` to remove all the callback props that are now provided by the context.
+4.  **[DONE]** Refactor `ObjectiveItem.tsx` to use the `useObjectiveContext` hook and call the context functions directly.
+5.  **[DONE]** Refactor `KeyResultItem.tsx` to use the `useObjectiveContext` hook and call the context functions directly.
+6.  **[DONE]** Refactor `ActionItemItem.tsx` to use the `useObjectiveContext` hook and call the context functions directly.

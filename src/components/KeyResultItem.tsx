@@ -1,32 +1,25 @@
-import type { KeyResult, ActionItem } from '../types';
+import type { KeyResult } from '../types';
 import { ChevronDown, ChevronRight, Plus, Trash2, Edit, GripVertical } from 'lucide-react';
 import ActionItemItem from './ActionItemItem';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { getDDay } from '../utils';
+import { useObjectiveContext } from '../contexts/ObjectiveContext';
 
 interface KeyResultItemProps {
+  objectiveId: string;
   kr: KeyResult;
-  onToggle: () => void;
-  onAddActionItem: () => void;
-  onDelete: () => void;
-  onEdit: () => void;
-  onToggleActionItem: (actionItemId: string) => void;
-  onDeleteActionItem: (actionItemId: string) => void;
-  onEditActionItem: (actionItem: ActionItem) => void;
 }
 
-export default function KeyResultItem({ 
-    kr, 
-    onToggle, 
+export default function KeyResultItem({ objectiveId, kr }: KeyResultItemProps) {
+  const { 
+    onToggleKeyResult, 
     onAddActionItem, 
-    onDelete, 
-    onEdit,
-    onToggleActionItem,
-    onDeleteActionItem,
-    onEditActionItem,
-}: KeyResultItemProps) {
+    onDeleteKeyResult, 
+    onEditKeyResult,
+  } = useObjectiveContext();
+
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: kr.id });
 
   const style = {
@@ -44,7 +37,7 @@ export default function KeyResultItem({
             <div {...attributes} {...listeners} className="cursor-move p-1 flex-none">
                 <GripVertical size={20} className="text-gray-400" />
             </div>
-            <button onClick={onToggle} className="mr-2 flex-none pt-0.5">
+            <button onClick={() => onToggleKeyResult(objectiveId, kr.id)} className="mr-2 flex-none pt-0.5">
                 {kr.isOpen ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
             </button>
             <h3 className="flex-1 font-semibold mb-1 text-sm line-clamp-2">
@@ -70,13 +63,13 @@ export default function KeyResultItem({
 
             {/* Right: Buttons */}
             <div className="flex gap-1 flex-none">
-                <button onClick={onAddActionItem} className="p-1 text-gray-500 hover:text-blue-600">
+                <button onClick={() => onAddActionItem(objectiveId, kr.id)} className="p-1 text-gray-500 hover:text-blue-600">
                     <Plus size={18} />
                 </button>
-                <button onClick={onEdit} className="p-1 text-gray-500 hover:text-blue-600">
+                <button onClick={() => onEditKeyResult(objectiveId, kr)} className="p-1 text-gray-500 hover:text-blue-600">
                     <Edit size={18} />
                 </button>
-                <button onClick={onDelete} className="p-1 text-gray-500 hover:text-red-600">
+                <button onClick={() => onDeleteKeyResult(objectiveId, kr.id)} className="p-1 text-gray-500 hover:text-red-600">
                     <Trash2 size={18} />
                 </button>
             </div>
@@ -89,10 +82,9 @@ export default function KeyResultItem({
             {kr.actionItems.map(item => (
               <ActionItemItem 
                 key={item.id}
+                objectiveId={objectiveId}
+                keyResultId={kr.id}
                 item={item} 
-                onToggle={() => onToggleActionItem(item.id)}
-                onDelete={() => onDeleteActionItem(item.id)}
-                onEdit={() => onEditActionItem(item)}
               />
             ))}
           </SortableContext>

@@ -14,6 +14,7 @@ import { app } from './firebase';
 import EditModal from './components/EditModal';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
+import { ObjectiveContext } from './contexts/ObjectiveContext';
 
 const Auth = lazy(() => import('./components/Auth'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
@@ -328,6 +329,20 @@ function App() {
       })
     );
   };
+  
+  const contextValue = {
+    onToggleObjective: toggleObjectiveOpen,
+    onAddKeyResult: (objectiveId: string) => openModal('KEY_RESULT', objectiveId),
+    onDeleteObjective: deleteObjective,
+    onEditObjective: (objective: Objective) => openEditModal('OBJECTIVE', objective, objective.id),
+    onAddActionItem: (objectiveId: string, keyResultId: string) => openModal('ACTION_ITEM', objectiveId, keyResultId),
+    onDeleteKeyResult: deleteKeyResult,
+    onEditKeyResult: (objectiveId: string, keyResult: KeyResult) => openEditModal('KEY_RESULT', keyResult, objectiveId, keyResult.id),
+    onToggleKeyResult: toggleKeyResultOpen,
+    onToggleActionItem: toggleActionItemCompletion,
+    onDeleteActionItem: deleteActionItem,
+    onEditActionItem: (objectiveId: string, keyResultId: string, actionItem: ActionItem) => openEditModal('ACTION_ITEM', actionItem, objectiveId, keyResultId),
+  };
 
   const memoizedObjectives = useMemo(() => {
     return objectives.map(objective => {
@@ -425,21 +440,10 @@ function App() {
                 </header>
 
                 <Dashboard objectives={memoizedObjectives} />
-
-                <ObjectiveList
-                    objectives={memoizedObjectives}
-                    onToggleObjective={toggleObjectiveOpen}
-                    onAddKeyResult={(objectiveId) => openModal('KEY_RESULT', objectiveId)}
-                    onDeleteObjective={deleteObjective}
-                    onEditObjective={(objective) => openEditModal('OBJECTIVE', objective, objective.id)}
-                    onAddActionItem={(objectiveId, keyResultId) => openModal('ACTION_ITEM', objectiveId, keyResultId)}
-                    onDeleteKeyResult={deleteKeyResult}
-                    onEditKeyResult={(objectiveId, keyResult) => openEditModal('KEY_RESULT', keyResult, objectiveId, keyResult.id)}
-                    onToggleKeyResult={toggleKeyResultOpen}
-                    onToggleActionItem={toggleActionItemCompletion}
-                    onDeleteActionItem={deleteActionItem}
-                    onEditActionItem={(objectiveId, keyResultId, actionItem) => openEditModal('ACTION_ITEM', actionItem, objectiveId, keyResultId)}
-                />
+                
+                <ObjectiveContext.Provider value={contextValue}>
+                    <ObjectiveList objectives={memoizedObjectives} />
+                </ObjectiveContext.Provider>
 
                 <button
                     onClick={() => openModal('OBJECTIVE')}

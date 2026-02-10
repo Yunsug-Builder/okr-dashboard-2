@@ -3,15 +3,16 @@ import { GripVertical, Trash2, Edit } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { getDDay } from '../utils';
+import { useObjectiveContext } from '../contexts/ObjectiveContext';
 
 interface ActionItemProps {
+  objectiveId: string;
+  keyResultId: string;
   item: ActionItem;
-  onToggle: () => void;
-  onDelete: () => void;
-  onEdit: () => void;
 }
 
-export default function ActionItemItem({ item, onToggle, onDelete, onEdit }: ActionItemProps) {
+export default function ActionItemItem({ objectiveId, keyResultId, item }: ActionItemProps) {
+  const { onToggleActionItem, onDeleteActionItem, onEditActionItem } = useObjectiveContext();
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: item.id });
 
   const style = {
@@ -35,7 +36,7 @@ export default function ActionItemItem({ item, onToggle, onDelete, onEdit }: Act
             <input
                 type="checkbox"
                 checked={item.isCompleted}
-                onChange={onToggle}
+                onChange={() => onToggleActionItem(objectiveId, keyResultId, item.id)}
                 className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-none"
             />
             <span className={`flex-1 line-clamp-2 text-sm ${item.isCompleted ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
@@ -53,10 +54,10 @@ export default function ActionItemItem({ item, onToggle, onDelete, onEdit }: Act
                 )}
             </div>
             <div className="flex gap-1 flex-none">
-                <button onClick={onEdit} className="p-1 text-gray-500 hover:text-blue-600">
+                <button onClick={() => onEditActionItem(objectiveId, keyResultId, item)} className="p-1 text-gray-500 hover:text-blue-600">
                     <Edit size={16} />
                 </button>
-                <button onClick={onDelete} className="p-1 text-gray-500 hover:text-red-600">
+                <button onClick={() => onDeleteActionItem(objectiveId, keyResultId, item.id)} className="p-1 text-gray-500 hover:text-red-600">
                     <Trash2 size={16} />
                 </button>
             </div>

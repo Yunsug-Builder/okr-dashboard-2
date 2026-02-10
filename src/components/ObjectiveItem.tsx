@@ -1,40 +1,24 @@
-import type { Objective, KeyResult, ActionItem } from '../types';
+import type { Objective } from '../types';
 import { ChevronDown, ChevronRight, Plus, Trash2, Edit, GripVertical } from 'lucide-react';
 import KeyResultItem from './KeyResultItem';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { getDDay } from '../utils';
+import { useObjectiveContext } from '../contexts/ObjectiveContext';
 
 interface ObjectiveItemProps {
   objective: Objective;
-  onToggle: () => void;
-  onAddKeyResult: () => void;
-  onDelete: () => void;
-  onEdit: () => void;
-  onAddActionItem: (keyResultId: string) => void;
-  onDeleteKeyResult: (keyResultId: string) => void;
-  onEditKeyResult: (keyResult: KeyResult) => void;
-  onToggleKeyResult: (keyResultId: string) => void;
-  onToggleActionItem: (keyResultId: string, actionItemId: string) => void;
-  onDeleteActionItem: (keyResultId: string, actionItemId: string) => void;
-  onEditActionItem: (keyResultId: string, actionItem: ActionItem) => void;
 }
 
-export default function ObjectiveItem({ 
-    objective, 
-    onToggle, 
+export default function ObjectiveItem({ objective }: ObjectiveItemProps) {
+  const { 
+    onToggleObjective, 
     onAddKeyResult, 
-    onDelete, 
-    onEdit, 
-    onAddActionItem,
-    onDeleteKeyResult,
-    onEditKeyResult,
-    onToggleKeyResult,
-    onToggleActionItem,
-    onDeleteActionItem,
-    onEditActionItem,
-}: ObjectiveItemProps) {
+    onDeleteObjective, 
+    onEditObjective 
+  } = useObjectiveContext();
+  
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: objective.id });
 
   const style = {
@@ -52,7 +36,7 @@ export default function ObjectiveItem({
             <div {...attributes} {...listeners} className="cursor-move p-1 flex-none">
                 <GripVertical size={24} className="text-gray-400" />
             </div>
-            <button onClick={onToggle} className="mr-2 flex-none pt-0.5">
+            <button onClick={() => onToggleObjective(objective.id)} className="mr-2 flex-none pt-0.5">
                 {objective.isOpen ? <ChevronDown size={24} /> : <ChevronRight size={24} />}
             </button>
             <h2 className="flex-1 font-bold mb-1 text-sm line-clamp-2">
@@ -78,13 +62,13 @@ export default function ObjectiveItem({
 
             {/* Right: Buttons */}
             <div className="flex gap-1 flex-none">
-                <button onClick={onAddKeyResult} className="p-1 text-gray-500 hover:text-blue-600">
+                <button onClick={() => onAddKeyResult(objective.id)} className="p-1 text-gray-500 hover:text-blue-600">
                     <Plus size={20} />
                 </button>
-                <button onClick={onEdit} className="p-1 text-gray-500 hover:text-blue-600">
+                <button onClick={() => onEditObjective(objective)} className="p-1 text-gray-500 hover:text-blue-600">
                     <Edit size={20} />
                 </button>
-                <button onClick={onDelete} className="p-1 text-gray-500 hover:text-red-600">
+                <button onClick={() => onDeleteObjective(objective.id)} className="p-1 text-gray-500 hover:text-red-600">
                     <Trash2 size={20} />
                 </button>
             </div>
@@ -97,16 +81,10 @@ export default function ObjectiveItem({
             {objective.keyResults.map(kr => (
               <KeyResultItem 
                 key={kr.id}
+                objectiveId={objective.id}
                 kr={kr}
-                onToggle={() => onToggleKeyResult(kr.id)}
-                onAddActionItem={() => onAddActionItem(kr.id)}
-                onDelete={() => onDeleteKeyResult(kr.id)}
-                onEdit={() => onEditKeyResult(kr)}
-                onToggleActionItem={(actionItemId) => onToggleActionItem(kr.id, actionItemId)}
-                onDeleteActionItem={(actionItemId) => onDeleteActionItem(kr.id, actionItemId)}
-                onEditActionItem={(actionItem) => onEditActionItem(kr.id, actionItem)}
               />
-            ))}\
+            ))}
           </SortableContext>
         </div>
       )}

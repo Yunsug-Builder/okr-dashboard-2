@@ -1,36 +1,12 @@
 import ObjectiveItem from './ObjectiveItem';
-import type { Objective, KeyResult, ActionItem } from '../types';
+import type { Objective } from '../types';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 interface ObjectiveListProps {
   objectives: Objective[];
-  onToggleObjective: (id: string) => void;
-  onAddKeyResult: (objectiveId: string) => void;
-  onDeleteObjective: (id: string) => void;
-  onEditObjective: (objective: Objective) => void;
-  onAddActionItem: (objectiveId: string, keyResultId: string) => void;
-  onDeleteKeyResult: (objectiveId: string, keyResultId: string) => void;
-  onEditKeyResult: (objectiveId: string, keyResult: KeyResult) => void;
-  onToggleKeyResult: (objectiveId: string, keyResultId: string) => void;
-  onToggleActionItem: (objectiveId: string, keyResultId: string, actionItemId: string) => void;
-  onDeleteActionItem: (objectiveId: string, keyResultId: string, actionItemId: string) => void;
-  onEditActionItem: (objectiveId: string, keyResultId: string, actionItem: ActionItem) => void;
 }
 
-export default function ObjectiveList({ 
-    objectives, 
-    onToggleObjective, 
-    onAddKeyResult, 
-    onDeleteObjective, 
-    onEditObjective,
-    onAddActionItem,
-    onDeleteKeyResult,
-    onEditKeyResult,
-    onToggleKeyResult,
-    onToggleActionItem,
-    onDeleteActionItem,
-    onEditActionItem,
-}: ObjectiveListProps) {
+export default function ObjectiveList({ objectives }: ObjectiveListProps) {
   if (objectives.length === 0) {
     return (
       <div className="text-center p-10 border-2 border-dashed border-gray-300 rounded-lg">
@@ -47,17 +23,6 @@ export default function ObjectiveList({
                 <ObjectiveItem
                     key={obj.id}
                     objective={obj}
-                    onToggle={() => onToggleObjective(obj.id)}
-                    onAddKeyResult={() => onAddKeyResult(obj.id)}
-                    onDelete={() => onDeleteObjective(obj.id)}
-                    onEdit={() => onEditObjective(obj)}
-                    onAddActionItem={(keyResultId) => onAddActionItem(obj.id, keyResultId)}
-                    onDeleteKeyResult={(keyResultId) => onDeleteKeyResult(obj.id, keyResultId)}
-                    onEditKeyResult={(keyResult) => onEditKeyResult(obj.id, keyResult)}
-                    onToggleKeyResult={(keyResultId) => onToggleKeyResult(obj.id, keyResultId)}
-                    onToggleActionItem={(keyResultId, actionItemId) => onToggleActionItem(obj.id, keyResultId, actionItemId)}
-                    onDeleteActionItem={(keyResultId, actionItemId) => onDeleteActionItem(obj.id, keyResultId, actionItemId)}
-                    onEditActionItem={(keyResultId, actionItem) => onEditActionItem(obj.id, keyResultId, actionItem)}
                 />
             ))}
         </SortableContext>

@@ -6,6 +6,7 @@ export interface ActionItem {
   isCompleted: boolean;
   dueDate: string | null;
   startDate: string | null;
+  order: number;
 }
 
 export interface KeyResult {
@@ -16,6 +17,7 @@ export interface KeyResult {
   isOpen?: boolean;
   dueDate: string | null;
   startDate: string | null;
+  order: number;
 }
 
 export interface Objective {
@@ -27,4 +29,5 @@ export interface Objective {
   isOpen?: boolean;
   dueDate: string | null;
   startDate: string | null;
+  order: number;
 }

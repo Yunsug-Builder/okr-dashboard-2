@@ -6,7 +6,8 @@ import {
   fetchObjectives,
   addObjectiveToDB,
   deleteObjectiveFromDB,
-  updateObjectiveInDB
+  updateObjectiveInDB,
+  saveOrderToFirebase
 } from './services/firestore';
 import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import type { User } from 'firebase/auth';
@@ -15,6 +16,7 @@ import EditModal from './components/EditModal';
 import { DndContext, closestCenter, useSensor, useSensors, MouseSensor, TouchSensor } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { ObjectiveContext } from './contexts/ObjectiveContext';
+import { arrayMove } from '@dnd-kit/sortable';
 
 const Auth = lazy(() => import('./components/Auth'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
@@ -31,6 +33,8 @@ type DndItem = Objective | KeyResult | ActionItem;
 interface FindResult {
     container: DndItem[];
     index: number;
+    level: 'objective' | 'keyResult' | 'actionItem';
+    parent?: Objective | KeyResult;
 }
 
 function App() {
@@ -54,13 +58,11 @@ function App() {
   
   const sensors = useSensors(
     useSensor(MouseSensor, {
-      // Require the mouse to move by 10 pixels before activating
       activationConstraint: {
         distance: 10,
       },
     }),
     useSensor(TouchSensor, {
-      // Press delay of 250ms, with a tolerance of 5px of movement
       activationConstraint: {
         delay: 250,
         tolerance: 5,
@@ -184,7 +186,7 @@ function App() {
         }
       } else { // --- CREATE MODE ---
         if (modalType === 'OBJECTIVE') {
-          const newId = await addObjectiveToDB(title, user.uid, itemStartDate || undefined, itemDueDate || undefined);
+          const newId = await addObjectiveToDB(title, user.uid, objectives.length, itemStartDate || undefined, itemDueDate || undefined);
           if (newId) {
             const newObjective: Objective = {
               id: newId,
@@ -195,6 +197,7 @@ function App() {
               isOpen: true,
               startDate: itemStartDate,
               dueDate: itemDueDate,
+              order: objectives.length,
             };
             setObjectives(prev => [...prev, newObjective]);
           }
@@ -210,6 +213,7 @@ function App() {
             isOpen: true,
             startDate: itemStartDate,
             dueDate: itemDueDate,
+            order: objective.keyResults.length,
           };
           
           const updatedKeyResults = [...objective.keyResults, newKeyResult];
@@ -226,7 +230,7 @@ function App() {
 
           const updatedKeyResults = objective.keyResults.map(kr => {
             if (kr.id === currentKrId) {
-              const newActionItem: ActionItem = { id: uuidv4(), title, isCompleted: false, dueDate: itemDueDate, startDate: itemStartDate };
+              const newActionItem: ActionItem = { id: uuidv4(), title, isCompleted: false, dueDate: itemDueDate, startDate: itemStartDate, order: kr.actionItems.length };
               return { ...kr, actionItems: [...kr.actionItems, newActionItem] };
             }
             return kr;
@@ -358,60 +362,79 @@ function App() {
 
   const memoizedObjectives = useMemo(() => {
     return objectives.map(objective => {
-      const keyResultsWithProgress = objective.keyResults.map(kr => {
-        const completed = kr.actionItems.filter(ai => ai.isCompleted).length;
-        const total = kr.actionItems.length;
-        const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
-        return { ...kr, progress, actionItems: [...kr.actionItems] };
-      });
+        const keyResultsWithProgress = (objective.keyResults || []).sort((a, b) => a.order - b.order).map(kr => {
+            const completed = (kr.actionItems || []).filter(ai => ai.isCompleted).length;
+            const total = (kr.actionItems || []).length;
+            const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+            const sortedActionItems = (kr.actionItems || []).sort((a, b) => a.order - b.order);
+            return { ...kr, progress, actionItems: sortedActionItems };
+        });
 
-      const totalProgress = keyResultsWithProgress.reduce((sum, kr) => sum + kr.progress, 0);
-      const overallProgress = keyResultsWithProgress.length > 0 ? Math.round(totalProgress / keyResultsWithProgress.length) : 0;
+        const totalProgress = keyResultsWithProgress.reduce((sum, kr) => sum + kr.progress, 0);
+        const overallProgress = keyResultsWithProgress.length > 0 ? Math.round(totalProgress / keyResultsWithProgress.length) : 0;
 
-      return { ...objective, progress: overallProgress, keyResults: keyResultsWithProgress };
-    });
-  }, [objectives]);
+        return { ...objective, progress: overallProgress, keyResults: keyResultsWithProgress };
+    }).sort((a, b) => a.order - b.order);
+}, [objectives]);
 
-  const handleDragEnd = (event: DragEndEvent) => {
+
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-        setObjectives((prevObjectives) => {
-            const newObjectives = JSON.parse(JSON.stringify(prevObjectives));
+        const activeId = active.id as string;
+        const overId = over.id as string;
 
-            const findItemsAndIndices = (items: DndItem[], id: string): FindResult | null => {
-                for (let i = 0; i < items.length; i++) {
-                    if (items[i].id === id) return { container: items, index: i };
-                    const currentItem = items[i];
-                    if ("keyResults" in currentItem && Array.isArray((currentItem as Objective).keyResults)) {
-                        const result: FindResult | null = findItemsAndIndices((currentItem as Objective).keyResults, id);
-                        if (result) return result;
-                    }
-                    if ("actionItems" in currentItem && Array.isArray((currentItem as KeyResult).actionItems)) {
-                        const result: FindResult | null = findItemsAndIndices((currentItem as KeyResult).actionItems, id);
-                        if (result) return result;
-                    }
+        let newObjectives = JSON.parse(JSON.stringify(objectives));
+
+        const findItemAndContainer = (items: DndItem[], id: string, parent: Objective | KeyResult | null = null, level: 'objective' | 'keyResult' | 'actionItem' = 'objective'): FindResult | null => {
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].id === id) return { container: items, index: i, level, parent: parent || undefined };
+                const currentItem = items[i];
+                if ("keyResults" in currentItem && Array.isArray((currentItem as Objective).keyResults)) {
+                    const result = findItemAndContainer((currentItem as Objective).keyResults, id, currentItem, 'keyResult');
+                    if (result) return result;
                 }
-                return null;
+                if ("actionItems" in currentItem && Array.isArray((currentItem as KeyResult).actionItems)) {
+                    const result = findItemAndContainer((currentItem as KeyResult).actionItems, id, currentItem, 'actionItem');
+                    if (result) return result;
+                }
+            }
+            return null;
+        }
+
+        const activeResult = findItemAndContainer(newObjectives, activeId);
+        const overResult = findItemAndContainer(newObjectives, overId);
+        
+        if (activeResult && overResult && activeResult.container === overResult.container) {
+            const { container, index: oldIndex, level, parent } = activeResult;
+            const { index: newIndex } = overResult;
+
+            const reorderedContainer = arrayMove(container, oldIndex, newIndex);
+            
+            if(level === 'objective') {
+                newObjectives = reorderedContainer;
+            } else if (parent && level === 'keyResult') {
+                (parent as Objective).keyResults = reorderedContainer as KeyResult[];
+            } else if (parent && level === 'actionItem') {
+                (parent as KeyResult).actionItems = reorderedContainer as ActionItem[];
             }
 
-            const activeResult = findItemsAndIndices(newObjectives, active.id as string);
-            const overResult = findItemsAndIndices(newObjectives, over.id as string);
+            setObjectives(newObjectives);
 
-            if (activeResult && overResult && activeResult.container === overResult.container) {
-                const { container, index: oldIndex } = activeResult;
-                const { index: newIndex } = overResult;
-                
-                const [movedItem] = container.splice(oldIndex, 1);
-                container.splice(newIndex, 0, movedItem);
-
-                return newObjectives;
+            // --- Save to Firebase ---
+            if (level === 'objective') {
+                const itemsToUpdate = newObjectives.map((obj: Objective, index: number) => ({ id: obj.id, order: index }));
+                await saveOrderToFirebase(itemsToUpdate, 'Objectives');
+            } else if (parent && (level === 'keyResult' || level === 'actionItem')) {
+                const objectiveToUpdate = newObjectives.find((obj: Objective) => obj.id === (parent as KeyResult).id || obj.keyResults.some(kr => kr.id === parent.id));
+                if(objectiveToUpdate) {
+                    await updateObjectiveInDB(objectiveToUpdate.id, { keyResults: objectiveToUpdate.keyResults });
+                }
             }
-
-            return prevObjectives;
-        });
+        }
     }
-  };
+};
 
   if (loadingAuth) {
     return <LoadingSpinner />;
